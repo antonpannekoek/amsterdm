@@ -124,8 +124,6 @@ class CandidatePlot(param.Parameterized):
             self.badchannels.add(channel)
         self.badchanlist = ",".join(str(value) for value in sorted(self.badchannels))
 
-        self.update_data = True
-
     def _update_dm_slider(self, event):
         """Update the DM slider range based on the DM slider zoom selector"""
         config = DM_ZOOM_LEVELS[event.new]
@@ -133,8 +131,8 @@ class CandidatePlot(param.Parameterized):
         step = config["step"]
         value = self.dm
         if zoom == 1:
-            start = config["start"]
-            end = config["end"]
+            start = self.param.dm.bounds[0]
+            end = self.param.dm.bounds[1]
             width = end - start
         else:
             width = 1000 / config["zoom"]
