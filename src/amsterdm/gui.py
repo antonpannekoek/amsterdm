@@ -82,6 +82,15 @@ class CandidatePlot(param.Parameterized):
         self.param.bkg_right.default = self.bkg_right
         self.bkg_reset = self._reset_bkg_range
 
+        # Use a range stream to keep track of the zoom factor
+        self.range_stream = hv.streams.RangeXY()
+
+        # internal attribute to keep track of manual selection of the sample range
+        self._x_viewrange = (None, None)
+
+        self.param.sample_end.bounds = (1, self.candidate.data.shape[0])
+        # self.param.sample_reset.default = self._reset_range
+
         self.dm_slider = pn.Param(
             self.param.dm, widgets={"dm": pn.widgets.FloatSlider}
         )[0]
@@ -245,7 +254,7 @@ class CandidatePlot(param.Parameterized):
         self.update_plot += 1
 
     @param.depends("update_plot")
-    def plot_lc(self, x_range=None):
+    def plot_lc(self, x_range=None, y_range=None):
         samples = np.arange(self.sample_start, self.sample_end)
         lcplot = hv.Curve((samples, self.lc), "samples", "I").opts(
             width=self.width, framewise=True
