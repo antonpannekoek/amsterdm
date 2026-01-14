@@ -41,6 +41,8 @@ class Candidate:
         self.header = header.copy()
         self.data = data.copy() if copy else data
         self._file = file
+        self.path = Path(self._file.name)
+        self.filename = self.path.name
 
     # Make the class a context manager to support the 'with' statement
     def __enter__(self):

@@ -412,6 +412,9 @@ class CandidatePlot(param.Parameterized):
         )
         layout = pn.Row(
             pn.Column(
+                pn.pane.HTML(
+                    f'<h1 style="margin: 0; padding: 0; text-align: center">{self.candidate.filename}</h1>'
+                ),
                 plots,
             ),
             pn.Column(
