@@ -1,4 +1,4 @@
-from bokeh.models import PrintfTickFormatter
+from bokeh.models import PrintfTickFormatter, LinearAxis, Range1d, ColorBar
 import holoviews as hv
 from holoviews import streams
 import hvplot
@@ -150,6 +150,56 @@ class CandidatePlot(param.Parameterized):
         )
 
         self._calc_data()
+
+    def add_physical_axes(self, plot, element):
+        times = self.candidate.times - self.candidate.times[0]
+        times *= SOD
+        freqs = self.candidate.freqs
+        figure = plot.state
+        if "time" not in figure.extra_x_ranges:
+            rangex = Range1d(
+                start=times[0],
+                end=times[-1],
+            )
+            figure.extra_x_ranges = {"time": rangex}
+            figure.add_layout(
+                LinearAxis(
+                    x_range_name="time",
+                    axis_label="time (ms)",
+                ),
+                "above",
+            )
+        else:
+            # The `rasterize()` call overwrites the secondary x-axis
+            # label, so we may have to add it again
+            for layout in figure.above:
+                print(layout, layout.x_range_name, layout.axis_label)
+                if hasattr(layout, "x_range_name") and layout.x_range_name == "time":
+                    layout.axis_label = "time [s]"
+        if "freq" not in figure.extra_y_ranges:
+            rangey = Range1d(
+                start=freqs[0],
+                end=freqs[-1],
+            )
+            figure.extra_y_ranges = {"freq": rangey}
+            figure.add_layout(
+                LinearAxis(
+                    y_range_name="freq",
+                    axis_label="frequency (MHz)",
+                ),
+                "right",
+            )
+
+    def move_colorbar(self, plot, element):
+        """Move the colorbar after (to the right of) the secondary y-axis"""
+        figure = plot.state
+        # Grab the existing colorbar
+        colorbars = [r for r in figure.right if isinstance(r, ColorBar)]
+        if not colorbars:
+            return
+        for colorbar in colorbars:
+            figure.right.remove(colorbar)
+            figure.add_layout(colorbar, "right")
 
     def _init_data(self):
         self.badchannels = set()
