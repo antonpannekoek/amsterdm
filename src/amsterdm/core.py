@@ -167,6 +167,7 @@ def dedisperse(
     dm: float,
     freqs: np.ndarray,
     tsamp: float,
+    reffreq: float | None = None,
     dmconst: float = DMCONST,
 ) -> np.ndarray:
     """
@@ -192,7 +193,8 @@ def dedisperse(
     """
     # set up freq info
     freqs = freqs.astype(np.float64)
-    reffreq = np.max(freqs)
+    if reffreq is None:
+        reffreq = np.max(freqs)
 
     # init empty array to store dedisp data in
     newdata = np.empty_like(data)

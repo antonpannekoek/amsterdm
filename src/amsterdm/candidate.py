@@ -55,7 +55,7 @@ class Candidate:
     def freqs(self):
         nfreq = self.header["nchans"]
         foff = self.header["foff"]
-        start = self.header["fch1"] + foff / 2
+        start = self.header["fch1"]
         freqs = start + np.arange(nfreq) * foff
         return freqs
 
