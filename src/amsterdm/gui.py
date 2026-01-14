@@ -1,6 +1,7 @@
 from bokeh.models import PrintfTickFormatter, LinearAxis, Range1d, ColorBar
 import holoviews as hv
 from holoviews import streams
+from holoviews.operation.datashader import rasterize
 import hvplot
 import hvplot.xarray  # noqa: F401
 import numpy as np
@@ -17,6 +18,7 @@ pn.extension()
 hv.config.image_rtol = 1e-1
 
 
+SOD = 60 * 60 * 24
 COLORMAPS = [
     "viridis",
     "plasma",
@@ -268,7 +270,10 @@ class CandidatePlot(param.Parameterized):
                 colorbar=True,
                 clim=clim,
                 cmap=self.colormap,
-                rasterize=True,
+                # Turn off explicitly here; use at last step, on the
+                # dynamic map (see below)
+                rasterize=False,
+                # Similarly, explicitly set this at the last step only
                 dynamic=False,
             )
             .redim(x="samples")
@@ -358,16 +363,26 @@ class CandidatePlot(param.Parameterized):
             ),
             collapsed=True,
         )
+        # Create a dynamic map and rasterize only here.
+        # Otherwise, the re-rasterization and resolution increase upon
+        # zooming in are lost.
+        # The hooks also need to be moved here, due to some oddity with
+        # the secondary x-axis that would cause its label to be overwritten
+        # with that of the primary x-axis
         waterfallplot = hv.DynamicMap(self.plot_waterfall, streams=[self.range_stream])
+        waterfallplot = rasterize(waterfallplot, dynamic=True).opts(
+            hooks=[self.add_physical_axes, self.move_colorbar]
+        )
+
         self.tap.source = waterfallplot
-        image_plot = pn.Column(waterfallplot, datarange)
 
         lcplot = hv.DynamicMap(self.plot_lc, streams=[self.range_stream])
-        plots = pn.Column(lcplot, pn.Row(bkgplots, image_plot))
+        plots = pn.Column(lcplot, pn.Row(bkgplots, waterfallplot))
         trunclc = pn.Param(
             self.param.trunclc,
             widgets={"trunclc": {"type": pn.widgets.FloatInput, "width": 100}},
         )[0]
+
         lcsettings = pn.Card(
             pn.Row(
                 self.param.loglc,
