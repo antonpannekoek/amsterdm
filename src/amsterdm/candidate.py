@@ -5,7 +5,7 @@ from types import EllipsisType
 
 import numpy as np
 
-from .core import calc_intensity
+from .core import calc_intensity, calc_lightcurve
 from .io import read_fileformat, read_filterbank, read_fits
 
 
@@ -134,6 +134,27 @@ class Candidate:
         intensity = calc_intensity(data, dm, badchan, datarange, bkg_extra=bkg_extra)
 
         return intensity
+
+    def lightcurve(
+        self,
+        dm: dict[str, float | np.ndarray] | None = None,
+        badchan: set | list | np.ndarray | None = None,
+        datarange: tuple[float, float] | None = None,
+        samplerange: slice | EllipsisType | None = None,
+        bkg_extra: bool = False,
+    ):
+        if not samplerange:
+            data = dict(xx=self.data[:, 0, :], yy=self.data[:, 1, :])
+        else:
+            data = dict(
+                xx=self.data[samplerange, 0, :], yy=self.data[samplerange, 1, :]
+            )
+
+        if dm:
+            dm = {"dm": dm, "freq": self.freqs, "tsamp": self.header["tsamp"]}
+        lightcurve = calc_lightcurve(data, dm, badchan, datarange, bkg_extra=bkg_extra)
+
+        return lightcurve
 
 
 def openfile(name: Path | str):

@@ -306,6 +306,103 @@ def calc_intensity(
     return intensity
 
 
+def calc_lightcurve(
+    data: dict[str, np.ndarray],
+    dm: dict[str, float | np.ndarray] | None = None,
+    badchannels: set | list | np.ndarray | None = None,
+    datarange: tuple[float, float] | None = (0.3, 0.7),
+    bkg_method: str = "mean",
+    bkg_extra: bool = False,
+):
+    """Calculate the light curve by summing across channels, after
+    dedispersion, flagging bad channels and background correction.
+
+    This returns a one-dimensional array of summed intensity versus
+    samples. Optionally, the average standard deviation is returned.
+
+    The light curve is computed from the two-dimensional intensity
+    array, and the arguments are identical to that of
+    ``calc_intensity``.
+
+    Parameters
+    ----------
+
+    data : dict[str, np.ndarray]
+        array for value.
+
+    dm : dict[str, float | np.ndarray] | None, default=None
+
+         The ``dm`` dict should contain the disperson measure "dm", the
+         frequencies corresponding to the channels "freq" and the timestamps
+         corresponding to the time-samples "tsamp".
+
+         Dedisperse the data for the given value. The default value of None
+         means no dedispersion is applied.
+
+    badchannels : set | list | np.ndarray | None, default=None
+        means no flagging is done.
+
+    datarange : tuple[float, float] | None, default=(0.3, 0.7)
+
+        Fractional range along the time axis, where the actual object is
+        located. Data outside these columns is used for the bandpass
+        correction.
+
+        The default of None indicates no bandpass correction is applied.
+
+    bkg_extra : bool, default=False
+
+        If ``True``, returns an additional object, which is the
+        average standard deviation, calculated from the background
+        area for full two-dimensional data (see also
+        ``measure_background``).
+
+    Returns
+    -------
+
+        A light curve in the form of a one-dimensional array with of intensities versus samples.
+        If ``bkg_extra`` is ``True``, returns a two-tuple of (light curve, average standard deviation).
+
+    """
+
+    results = calc_intensity(
+        data, dm, badchannels, datarange, bkg_method=bkg_method, bkg_extra=bkg_extra
+    )
+
+    if bkg_extra:
+        results, bkg = results
+        _, std = bkg
+        # the background for the intensity is only summed across
+        # samples, for each channel separately thus we need to average
+        # this array of standard deviations
+        std = np.sqrt(np.mean(std**2))
+
+    lightcurve = results.sum(axis=1)
+
+    return (lightcurve, std) if bkg_extra else lightcurve
+
+
+def calc_lightcurve_from_waterfall(waterfall, bkg_extra=None):
+    """Calculate the light curve from waterfall data
+
+    If ``bkg_extra`` is provided with the extra background data from
+    the waterfall calculation, an average standard deviation will be
+    returned as well.
+
+    """
+
+    if bkg_extra is not None:
+        _, std = bkg_extra
+        # the background for the intensity is only summed across
+        # samples, for each channel separately thus we need to average
+        # this array of standard deviations
+        std = np.sqrt(np.mean(std**2))
+
+    lightcurve = waterfall.sum(axis=1)
+
+    return lightcurve if bkg_extra is None else (lightcurve, std)
+
+
 def bowtie(
     data: np.ndarray,
     dm: tuple[float, float],
