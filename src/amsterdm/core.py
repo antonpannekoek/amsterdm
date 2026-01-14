@@ -314,7 +314,7 @@ def bowtie(
     badchannels: set | list | np.ndarray | None = None,
     datarange: tuple[float, float] = (0.3, 0.7),
     ndm: int = 50,
-    trange: slice | EllipsisType = Ellipsis,
+    samplerange: slice | EllipsisType = Ellipsis,
 ) -> np.ndarray:
     """
     Create the data for a bowtie plot: varying DM versus time/samples
@@ -341,7 +341,7 @@ def bowtie(
         dedispersion): lower and upper fraction. The remainder area is used for
         background determination.
 
-        This section applies to the full data range; ``trange`` is ignored for
+        This section applies to the full data range; ``samplerange`` is ignored for
         the background calculation.
 
         The background is calculcated once for the central DM (thus for
@@ -351,7 +351,7 @@ def bowtie(
     ndm : int, default=50
         Number of DM samples along the y-axis
 
-    trange : slice | EllipsisType, default=Ellipsis
+    samplerange : slice | EllipsisType, default=Ellipsis
         Section of data on the "samples" axis to be used.
 
         For the background calculationt, the full data section is used.
@@ -391,8 +391,8 @@ def bowtie(
     yy = (yy - mean[None, :]) / std[None, :]
 
     # Limit the data range
-    xx = xx[trange, :]
-    yy = yy[trange, :]
+    xx = xx[samplerange, :]
+    yy = yy[samplerange, :]
     # xx and yy are now flagged, bandpass-corrected and dedispersed at the mean DM
     # This provides the starting point for the iteration through dmrange
 

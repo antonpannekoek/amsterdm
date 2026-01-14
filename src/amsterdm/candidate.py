@@ -75,7 +75,7 @@ class Candidate:
         dm: dict[str, float | np.ndarray] | None = None,
         badchan: set | list | np.ndarray | None = None,
         datarange: tuple[float, float] | None = None,
-        trange: slice | EllipsisType | None = None,
+        samplerange: slice | EllipsisType | None = None,
         bkg_extra: bool = False,
     ):
         """Returns the Stokes I parameter from the xx and yy signals
@@ -120,10 +120,12 @@ class Candidate:
 
         """
 
-        if not trange:
+        if not samplerange:
             data = dict(xx=self.data[:, 0, :], yy=self.data[:, 1, :])
         else:
-            data = dict(xx=self.data[trange, 0, :], yy=self.data[trange, 1, :])
+            data = dict(
+                xx=self.data[samplerange, 0, :], yy=self.data[samplerange, 1, :]
+            )
 
         if dm:
             dm = {"dm": dm, "freq": self.freqs, "tsamp": self.header["tsamp"]}
