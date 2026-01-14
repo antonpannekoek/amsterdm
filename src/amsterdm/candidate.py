@@ -13,7 +13,7 @@ SOD = 60 * 60 * 24
 
 
 class Candidate:
-    """An FRB candidate object"""
+    """A candidate FRB object"""
 
     @classmethod
     def fromfile(cls, fobj: BufferedIOBase):
@@ -41,6 +41,8 @@ class Candidate:
         self.header = header.copy()
         self.data = data.copy() if copy else data
         self._file = file
+        self.path = Path(self._file.name)
+        self.filename = self.path.name
 
     # Make the class a context manager to support the 'with' statement
     def __enter__(self):
@@ -72,10 +74,10 @@ class Candidate:
 
     def calc_intensity(
         self,
-        badchan: set | list | np.ndarray | None = None,
         dm: dict[str, float | np.ndarray] | None = None,
-        objrange: tuple[float, float] | None = None,
-        trange: slice | EllipsisType | None = None,
+        badchan: set | list | np.ndarray | None = None,
+        datarange: tuple[float, float] | None = None,
+        samplerange: slice | EllipsisType | None = None,
         bkg_extra: bool = False,
     ):
         """Returns the Stokes I parameter from the xx and yy signals
@@ -89,7 +91,7 @@ class Candidate:
         badchan : set, list or array of channel indices to flag. The default of None
             means no flagging is done.
 
-        objrange : two-tuple of floating point fractions between 0 and 1
+        datarange : two-tuple of floating point fractions between 0 and 1
 
             Fractional range along the time axis, where the actual object
             is located. Data outside these columns is used for the
@@ -97,27 +99,39 @@ class Candidate:
 
             The default of None indicates no bandpass correction is applied.
 
-        dm : dict with keys "dm", "freq" and "tsamp", containing the
-            disperson measure, the frequencies corresponding to the
-            channels and the timestamps corresponding to the
-            time-samples.
+        dm : float
+
+            Disperson measure
 
             Dedisperse the data for the given value. The default value of
             None means no dedispersion is applied.
 
+        bkg_extra: bool, default False
+
+            If `True`, returns an additional object, which is a dict
+            containing the mean and standard deviation of the background
+            along the channels; these are one-dimensional arrays
+
 
         Returns
         -------
-        Two-dimensional array with the Stokes intensity parameter.
+
+        Two-dimensional array with the Stokes intensity parameter. If
+        `bkg_extra` is `True`, returns a two-tuple of (two-dimensional
+        array, bkg_info dict).
 
         """
 
-        if not trange:
+        if not samplerange:
             data = dict(xx=self.data[:, 0, :], yy=self.data[:, 1, :])
         else:
-            data = dict(xx=self.data[trange, 0, :], yy=self.data[trange, 1, :])
+            data = dict(
+                xx=self.data[samplerange, 0, :], yy=self.data[samplerange, 1, :]
+            )
 
-        intensity = calc_intensity(data, badchan, dm, objrange, bkg_extra=bkg_extra)
+        if dm:
+            dm = {"dm": dm, "freq": self.freqs, "tsamp": self.header["tsamp"]}
+        intensity = calc_intensity(data, dm, badchan, datarange, bkg_extra=bkg_extra)
 
         return intensity
 
