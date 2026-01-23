@@ -1,16 +1,15 @@
-from types import EllipsisType
-
 import numpy as np
 
-from .constants import DMCONST
+from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST
+from .utils import FInterval
 
 
 __all__ = [
     "mask2d",
-    "measure_background",
+    "calc_background",
     "correct_bandpass",
     "dedisperse",
-    "calc_intensity",
+    "create_dynspectrum",
     "bowtie",
 ]
 
@@ -23,7 +22,7 @@ def mask2d(data, rowids):
     return data
 
 
-def measure_background(
+def calc_background_old(
     data: np.ndarray | np.ma.MaskedArray,
     datarange: tuple[float, float] = (0.3, 0.7),
     method: str = "median",
@@ -98,9 +97,80 @@ def measure_background(
     return mean, std
 
 
+def calc_background(
+    data: np.ndarray | np.ma.MaskedArray,
+    backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+    method: str = "median",
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Return background and its standard deviation for each channel
+
+    Assumes any dispersion correction has already been done
+
+    For each channel, a background level is estimated. This is done by
+    selecting a set of time-sample columns outside of the columns that contain
+    actual object of interest (the latter is given with ``datarange`` as a
+    range in fraction of the total time-sample columns), then calculating an
+    average, using one of three ``method``s (mean, median or mode), and the
+    background standard deviation (noise). The average is subtracted from the
+    full channel values, then the channel is divided (normalized) by the
+    standard deviation.
+
+    Parameters
+    ----------
+    data : np.ndarray | np.ma.MaskedArray
+        data that needs be normalised. Usually contains frequency on the y-axis
+        and time samples on the x-axis.
+
+    backgroundrange: iterable of 2-tuples
+        Iterable of ranges as fractions of the sample dimension of the data, that is,
+        each iterable item contains a start and end fraction of the first dimension of
+        the data that corresponds to a background area
+
+    method : str, default="median"
+        method to estimate the background level for each channel.
+
+        Note that "mode" is not very applicable for continuously distributed
+        data; and for normally distributed data, it will be the same value as
+        the median or mean.
+    """
+
+    if method not in ["mean", "median", "mode"]:
+        raise ValueError("method should be one of 'mean', 'median' or 'mode'")
+
+    if isinstance(backgroundrange[0], (float, int)):
+        backgroundrange = [backgroundrange]
+
+    nsamp = data.shape[0]
+    idx_bkg = []
+    for bkgrange in backgroundrange:
+        low = int(nsamp * bkgrange[0] + 0.5)
+        high = int(nsamp * bkgrange[1] + 0.5)
+        idx_bkg.append(np.arange(low, high))
+    idx_bkg = np.concatenate(idx_bkg)
+    bkg = data[idx_bkg, :]
+
+    if method == "mean":
+        mean = np.ma.mean(bkg, axis=0)
+    elif method == "median":
+        mean = np.ma.median(bkg, axis=0)
+    elif method == "mode":
+        mean = np.empty(data.shape[1])
+        for i in range(data.shape[1]):
+            hist, bin_edges = np.histogram(bkg[:, i], bins=100)
+            max_bin = np.argmax(hist)
+            mean[i] = 0.5 * (bin_edges[max_bin] + bin_edges[max_bin + 1])
+    else:  # we shouldn't be able to get here
+        raise ValueError("method should be one of 'mean', 'median' or 'mode'")
+
+    std = np.ma.std(bkg, axis=0)
+
+    return mean, std
+
+
 def correct_bandpass(
     data: np.ndarray | np.ma.MaskedArray,
-    datarange: tuple[float, float] = (0.3, 0.7),
+    backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     method: str = "median",
     extra: bool = False,
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -125,12 +195,15 @@ def correct_bandpass(
         data that needs be normalised. Usually contains frequency on the y-axis
         and time samples on the x-axis.
 
-    datarange : tuple[float, float], default=(0.3, 0.7)
+    backgroundrange: 2-tuple of background interval, or iterable of
+        2-tuples of background fraction intervals.
 
-        Fractional range along the time axis, where the actual object is
-        located. Data outside these columns is used as the background for the
-        estimation of mean/median/mode and standard deviation for the bandpass
-        correction.
+        Each interval is a 2-tuple that contains two floating point
+        values between 0 and 1, which are the fractions of the full
+        data sample (time-axis) range that contain a background
+        section. All sections are combined, after which the background
+        is calculated (using the median or mean value over the
+        combined area).
 
     method : str, default="median"
         method to estimate the background level for each channel.
@@ -149,7 +222,7 @@ def correct_bandpass(
     np.ndarray | tuple[np.ndarray, np.ndarray, np.ndarray]
     """
 
-    mean, std = measure_background(data, datarange, method)
+    mean, std = calc_background(data, backgroundrange, method)
 
     # Bandpass correction
     data_sub = (data - mean[None, :]) / std[None, :]
@@ -209,8 +282,8 @@ def dedisperse(
     assert len(bin_shift) == data.shape[0]
 
     # dedisperse by rolling back the channels
-    for i, bs in enumerate(bin_shift):
-        newdata[i, :] = np.roll(data[i, :], bs)
+    for i, shift in enumerate(bin_shift):
+        newdata[i, :] = np.roll(data[i, :], shift)
 
     return newdata
 
@@ -287,8 +360,8 @@ def calc_intensity(
 
     extra = {}
     if datarange:
-        xx_bkgmean, xx_bkgstd = measure_background(xx, datarange)
-        yy_bkgmean, yy_bkgstd = measure_background(yy, datarange)
+        xx_bkgmean, xx_bkgstd = calc_background(xx, datarange)
+        yy_bkgmean, yy_bkgstd = calc_background(yy, datarange)
 
         # Bandpass correction
         xx = (xx - xx_bkgmean[None, :]) / xx_bkgstd[None, :]
@@ -306,12 +379,180 @@ def calc_intensity(
     return intensity
 
 
+def create_dynspectrum(
+    data: np.ndarray,
+    dm: dict[str, float | np.ndarray] | None = None,
+    badchannels: set | list | np.ndarray | None = None,
+    backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+    bkg_method: str = "median",
+    bkg_extra: bool = False,
+    background: tuple[float | dict, float | dict] | None = None,
+):
+    """Returns a dynamical spectrum with the Stokes I / intensity
+    parameter from the input data data array
+
+    The routine flags bad channels, corrects for the given dispersion,
+    calculates a background and corrects for the bandpass.
+
+    When multiple polarization channels (xx and yy) exist, it does
+    this for each independently, then combines the values together.
+
+    The data is either
+
+    - two-dimensional, with the first dimension the time samples and
+      the second dimension the frequency channels,
+
+    - or three-dimensional, with the first dimension the time samples,
+      the second dimension the polarization, and the third dimension
+      the frequency channels.
+
+    The data should contain either one or no polarization dimension, in
+    which case this is assumed to be Stokes I; or the data contains four
+    polarization channels, of which the first two are assumed to be xx
+    and yy.
+
+    It will optionally correct for bad channels, bandpass and dispersion, if
+    the relevant keyword argument is given.
+
+    Parameters
+    ----------
+
+    data : dict[str, np.ndarray]
+        array for value.
+
+    dm : dict[str, float | np.ndarray] | None, default=None
+
+         The ``dm`` dict should contain the disperson measure "dm", the
+         frequencies corresponding to the channels "freq" and the timestamps
+         corresponding to the time-samples "tsamp".
+
+         Dedisperse the data for the given value. The default value of None
+         means no dedispersion is applied.
+
+    badchannels : set | list | np.ndarray | None, default=None
+        means no flagging is done.
+
+        The bad channels are assumed to be the same for the xx and yy
+        polarizations, if applicable.
+
+    backgroundrange: 2-tuple of background interval, or iterable of
+        2-tuples of background fraction intervals.
+
+        Each interval is a 2-tuple that contains two floating point
+        values between 0 and 1, which are the fractions of the full
+        data sample (time-axis) range that contain a background
+        section. All sections are combined, after which the background
+        is calculated (using the median or mean value over the
+        combined area).
+
+    bkg_extra : bool, default=False
+
+        If ``True``, returns an additional object, which is a dict containing
+        the mean and standard deviation of the background along the channels;
+        these are one-dimensional arrays
+
+    background: tuple of mean and standard deviation of the background values
+
+        The tuple values can also be dicts. In that case, the keys are
+        the polarization keys, (xx and yy), with the valuse the mean
+        and standard deviation for those polarization parts. If the
+        tuple elements are single values, but the input data contains
+        multiple polarizations, it is assumed that the mean and
+        standard deviation are the same for xx and yy.
+
+
+    If the `background` argument is given, `backgroundrange` and
+    `bkg_method` are ignored. If `bkg_extra` is also set, the returned
+    values identical to the given values.
+
+    Returns
+    -------
+
+        Two-dimensional array with the Stokes intensity parameter. If
+        ``bkg_extra`` is ``True``, returns a two-tuple of (two-dimensional
+        array, bkg_info dict).
+
+    """
+
+    data = np.squeeze(data)
+    if data.ndim == 2:
+        xx = np.ma.array(data)
+        yy = None
+    elif data.ndim != 3:
+        raise ValueError("data has incorrect number of dimensions")
+    elif data.shape[1] != 4:
+        raise ValueError("second (polarization) dimension has incorrect size")
+    else:
+        xx = np.ma.array(data[:, 0, :])
+        yy = np.ma.array(data[:, 1, :])
+
+    if badchannels:
+        rowids = (
+            list(badchannels)
+            if not isinstance(badchannels, (list, np.ndarray))
+            else badchannels
+        )
+        xx[:, rowids] = np.ma.masked
+        if yy is not None:
+            yy[:, rowids] = np.ma.masked
+
+    if dm:
+        xx = dedisperse(xx.T, dm["dm"], dm["freq"], dm["tsamp"]).T
+        if yy is not None:
+            yy = dedisperse(yy.T, dm["dm"], dm["freq"], dm["tsamp"]).T
+
+    if background:
+        # Use a given background
+        bkgmean, bkgstd = background
+        if isinstance(bkgmean, dict):
+            # Separate background values for xx and yy
+            xx_bkgmean = bkgmean["xx"]
+            yy_bkgmean = bkgmean["yy"]
+        else:
+            xx_bkgmean = yy_bkgmean = bkgmean
+        if isinstance(bkgstd, dict):
+            # Separate background values for xx and yy
+            xx_bkgstd = bkgstd["xx"]
+            yy_bkgstd = bkgstd["yy"]
+        else:
+            xx_bkgstd = yy_bkgstd = bkgstd
+    else:
+        # Calculate the background from the data
+        xx_bkgmean, xx_bkgstd = calc_background(xx, backgroundrange, method=bkg_method)
+        yy
+        if yy is not None:
+            yy_bkgmean, yy_bkgstd = calc_background(
+                yy, backgroundrange, method=bkg_method
+            )
+
+    # Perform the bandpass correction using the background
+    xx = (xx - xx_bkgmean[None, :]) / xx_bkgstd[None, :]
+    if yy is not None:
+        yy = (yy - yy_bkgmean[None, :]) / yy_bkgstd[None, :]
+        # Add the two polarization channels together
+        intensity = xx + yy
+    else:
+        intensity = xx
+        yy_bkgmean = yy_bkgstd = 0
+
+    if bkg_extra:
+        extra = {
+            "mean": xx_bkgmean + yy_bkgmean,
+            "std": np.sqrt(xx_bkgstd**2 + yy_bkgstd**2),
+        }
+
+    if bkg_extra:
+        return intensity, extra
+
+    return intensity
+
+
 def calc_lightcurve(
     data: dict[str, np.ndarray],
     dm: dict[str, float | np.ndarray] | None = None,
     badchannels: set | list | np.ndarray | None = None,
-    datarange: tuple[float, float] | None = (0.3, 0.7),
-    bkg_method: str = "mean",
+    backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+    bkg_method: str = "median",
     bkg_extra: bool = False,
 ):
     """Calculate the light curve by summing across channels, after
@@ -342,20 +583,22 @@ def calc_lightcurve(
     badchannels : set | list | np.ndarray | None, default=None
         means no flagging is done.
 
-    datarange : tuple[float, float] | None, default=(0.3, 0.7)
+    backgroundrange: 2-tuple of background interval, or iterable of
+        2-tuples of background fraction intervals.
 
-        Fractional range along the time axis, where the actual object is
-        located. Data outside these columns is used for the bandpass
-        correction.
-
-        The default of None indicates no bandpass correction is applied.
+        Each interval is a 2-tuple that contains two floating point
+        values between 0 and 1, which are the fractions of the full
+        data sample (time-axis) range that contain a background
+        section. All sections are combined, after which the background
+        is calculated (using the median or mean value over the
+        combined area).
 
     bkg_extra : bool, default=False
 
         If ``True``, returns an additional object, which is the
         average standard deviation, calculated from the background
         area for full two-dimensional data (see also
-        ``measure_background``).
+        ``calc_background``).
 
     Returns
     -------
@@ -365,8 +608,13 @@ def calc_lightcurve(
 
     """
 
-    results = calc_intensity(
-        data, dm, badchannels, datarange, bkg_method=bkg_method, bkg_extra=bkg_extra
+    results = create_dynspectrum(
+        data,
+        dm,
+        badchannels,
+        backgroundrange,
+        bkg_method=bkg_method,
+        bkg_extra=bkg_extra,
     )
 
     if bkg_extra:
@@ -405,16 +653,15 @@ def calc_lightcurve_from_waterfall(waterfall, bkg_extra=None):
 
 def bowtie(
     data: np.ndarray,
-    dm: tuple[float, float],
+    dm: FInterval,
     freqs: np.ndarray,
     tsamp: float,
     badchannels: set | list | np.ndarray | None = None,
-    datarange: tuple[float, float] = (0.3, 0.7),
+    backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+    bkg_method: str = "median",
     ndm: int = 50,
-    samplerange: slice | EllipsisType = Ellipsis,
 ) -> np.ndarray:
-    """
-    Create the data for a bowtie plot: varying DM versus time/samples
+    """Create the data for a bowtie plot: varying DM versus time/samples
 
     Parameters
     ----------
@@ -423,6 +670,11 @@ def bowtie(
 
     dm : tuple[float, float]
         range of the dispersion measure: start and stop
+
+        An average DM is calculated from this range, which is then
+        used in the calculation of the background: the data is
+        dedispersed to this mean DM and the background is calculated,
+        which is used for the bandpass correction.
 
     freqs : np.ndarray
         frequencies corresponding to the channel centers
@@ -433,29 +685,26 @@ def bowtie(
     badchannels : set | list | np.ndarray | None, default=None
         numbers of channels to flag/ignore
 
-    datarange : tuple[float, float], default=(0.3, 0.7)
-        Sample fractions within which the burst is located (after
-        dedispersion): lower and upper fraction. The remainder area is used for
-        background determination.
+    backgroundrange: 2-tuple of background interval, or iterable of
+        2-tuples of background fraction intervals.
 
-        This section applies to the full data range; ``samplerange`` is ignored for
-        the background calculation.
+        Each interval is a 2-tuple that contains two floating point
+        values between 0 and 1, which are the fractions of the full
+        data sample (time-axis) range that contain a background
+        section. All sections are combined, after which the background
+        is calculated (using the median or mean value over the
+        combined area).
 
-        The background is calculcated once for the central DM (thus for
-        ``(dm[0] + dm[1]) / 2``), so the datarange should be for the particular
-        DM; all other DM samples use the same background value.
+        The background is determined with respect to the average DM of
+        the given `dm` interval.
 
     ndm : int, default=50
         Number of DM samples along the y-axis
 
-    samplerange : slice | EllipsisType, default=Ellipsis
-        Section of data on the "samples" axis to be used.
-
-        For the background calculationt, the full data section is used.
-
     Returns
     -------
     np.ndarray
+
     """
 
     dm_center = (dm[0] + dm[1]) / 2
@@ -465,8 +714,17 @@ def bowtie(
     # This provides the starting point for varying DM
     # This assumes linear XX and YY polarization channels
 
-    xx = np.ma.array(data[:, 0, :])
-    yy = np.ma.array(data[:, 1, :])
+    data = np.squeeze(data)
+    if data.ndim == 2:
+        xx = np.ma.array(data)
+        yy = None
+    elif data.ndim != 3:
+        raise ValueError("data has incorrect number of dimensions")
+    elif data.shape[1] != 4:
+        raise ValueError("second (polarization) dimension has incorrect size")
+    else:
+        xx = np.ma.array(data[:, 0, :])
+        yy = np.ma.array(data[:, 1, :])
 
     if badchannels:
         rowids = (
@@ -474,33 +732,35 @@ def bowtie(
             if not isinstance(badchannels, (list, np.ndarray))
             else badchannels
         )
-
         xx[:, rowids] = np.ma.masked
-        yy[:, rowids] = np.ma.masked
+        if yy is not None:
+            yy[:, rowids] = np.ma.masked
 
     xx = dedisperse(xx.T, dm_center, freqs, tsamp).T
-    yy = dedisperse(yy.T, dm_center, freqs, tsamp).T
+    if yy is not None:
+        yy = dedisperse(yy.T, dm_center, freqs, tsamp).T
 
     # Bandpass correction
-    mean, std = measure_background(xx, datarange)
+    mean, std = calc_background(xx, backgroundrange, method=bkg_method)
     xx = (xx - mean[None, :]) / std[None, :]
-    mean, std = measure_background(yy, datarange)
-    yy = (yy - mean[None, :]) / std[None, :]
+    if yy is not None:
+        mean, std = calc_background(yy, backgroundrange, method=bkg_method)
+        yy = (yy - mean[None, :]) / std[None, :]
 
-    # Limit the data range
-    xx = xx[samplerange, :]
-    yy = yy[samplerange, :]
     # xx and yy are now flagged, bandpass-corrected and dedispersed at the mean DM
     # This provides the starting point for the iteration through dmrange
 
-    # dmrange is relatively the mean DM
+    # dmrange is relative to the mean DM
     dmrange = np.linspace(dm[0], dm[1], ndm) - dm_center
 
     tie = []
     for dm in dmrange:
         xxdd = dedisperse(xx.T, dm, freqs, tsamp).T
-        yydd = dedisperse(yy.T, dm, freqs, tsamp).T
-        stokesI = xxdd + yydd
+        if yy:
+            yydd = dedisperse(yy.T, dm, freqs, tsamp).T
+            stokesI = xxdd + yydd
+        else:
+            stokesI = xxdd
         stokesI = np.ma.filled(stokesI, np.nan)
         lc = np.nansum(stokesI, axis=1)
         tie.append(lc)

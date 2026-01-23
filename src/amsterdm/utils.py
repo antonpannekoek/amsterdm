@@ -1,4 +1,15 @@
+"""Utility functions and classes"""
+
+from typing import NamedTuple
+
 import numpy as np
+
+
+class FInterval(NamedTuple):
+    """Simple tuple to hold a floating point interval"""
+
+    start: float
+    end: float
 
 
 def coord2deg(coord, factor=1):
@@ -27,7 +38,6 @@ def symlog(data: np.ndarray) -> np.ndarray:
     References
     ----------
         https://doi.org/10.1088%2F0957-0233%2F24%2F2%2F027001
-
     """
 
     data = np.sign(data) * np.log(1 + np.abs(data))
