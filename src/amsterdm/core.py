@@ -5,21 +5,88 @@ from .utils import FInterval
 
 
 __all__ = [
-    "mask2d",
     "calc_background",
     "correct_bandpass",
     "dedisperse",
     "create_dynspectrum",
     "bowtie",
+    "signal2noise",
 ]
 
 
-def mask2d(data, rowids):
-    """Mask rows in a two-dimensional array"""
+def downsample(
+    data: np.ndarray | np.ma.MaskedArray,
+    factor: int = 8,
+    remainder: str = "droptail",
+    method: str = "mean",
+) -> np.ndarray | np.ma.MaskedArray:
+    """Downsample `data` by `factor` along the first axis. Bins can be
+    averaged (default) or summed together.
 
-    data = np.ma.masked_array(data, mask=False)
-    data[:, rowids] = np.ma.masked
-    return data
+    If the first axis doesn't match an integer number of `factor`, the
+    remainder can be dropped, either from the start ("drophead") or
+    the end ("droptail"; the default); or the remainder can be added
+    to the last bin ("addtail") or be added to the first bin
+    ("addhead").
+
+    If the number of available bins in `data` is smaller than
+    `factor`, all bins are combined, even when `method` is one of
+    "droptail" or "drophead".
+
+    Raises a `ValueError`
+        - for incorrect data dimensions (less than 2)
+        - for an incorrect `factor` (less than 1)
+        - for an incorrect remainder value
+        - for an incorrect method
+
+    """
+
+    if data.ndim < 2:
+        raise ValueError("'data' should at least be two-dimensional")
+    if factor < 1:
+        raise ValueError("'factor' should be a positive integer")
+    if method not in ("mean", "sum"):
+        raise ValueError("'method' should be one of 'mean' or 'sum'")
+    if remainder not in ("droptail", "addtail", "drophead", "addhead"):
+        raise ValueError(
+            "'remainder' should be one of 'droptail', 'addtail', 'drophead' or 'addhead'"
+        )
+
+    n = data.shape[0]
+    if n <= factor:
+        if method == "mean":
+            return data.mean(axis=0, keepdims=True)
+        elif method == "sum":
+            return data.sum(axis=0, keepdims=True)
+
+    nbins, rem = divmod(n, factor)
+    combbin = factor + rem
+    if "tail" in remainder:
+        indices = np.arange(0, nbins * factor, factor)
+        count = factor * np.ones(nbins)
+        if "add" in remainder:
+            count[-1] = combbin
+        elif "drop" in remainder and rem > 0:
+            data = data[:-rem, ...]
+            # if rem > 0:
+            #    s = slice(None, -rem)
+    elif "addhead" in remainder:
+        indices = np.hstack([[0], combbin + np.arange(0, nbins - 1) * factor])
+        count = factor * np.ones(nbins)
+        count[0] = combbin
+    elif "drophead" in remainder:
+        indices = rem + np.arange(0, n - rem, factor)
+        count = factor * np.ones(nbins)
+
+    summed = np.add.reduceat(data, indices, axis=0)
+
+    shape = (nbins,) + (1,) * (data.ndim - 1)
+    count = count.reshape(shape)
+
+    if method == "sum":
+        return summed
+    else:
+        return summed / count
 
 
 def calc_background_old(
