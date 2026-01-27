@@ -89,6 +89,26 @@ def downsample(
         return summed / count
 
 
+def upsample(
+    data: np.ndarray,
+    factor: int = 2,
+) -> np.ndarray:
+    """Rebin the data to a higher resolution along the first (sample/time) axis
+
+    Sample bins are simply split into `factor` new bins, with the same
+    value as that of the original bin.
+
+    Under the hood, this simply uses `numpy.repeat` for the first
+    axis.
+
+    """
+
+    if factor < 1:
+        raise ValueError("'factor' should be a positive integer")
+
+    return np.repeat(data, factor, axis=0)
+
+
 def calc_background_old(
     data: np.ndarray | np.ma.MaskedArray,
     datarange: tuple[float, float] = (0.3, 0.7),

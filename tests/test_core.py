@@ -2,7 +2,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 import pytest
 
-from amsterdm.core import downsample
+from amsterdm import core
 
 
 @pytest.fixture
@@ -112,8 +112,10 @@ def nddata(base_1d, request):
     ],
 )
 class TestDownsample:
-    def test_downsample_nd(self, nddata, remainder, factor, method, means):
-        result = downsample(nddata, factor=factor, remainder=remainder, method=method)
+    def test_downsample(self, nddata, remainder, factor, method, means):
+        result = core.downsample(
+            nddata, factor=factor, remainder=remainder, method=method
+        )
 
         # Build expected array from the list of means
         expected = np.asarray(
@@ -122,23 +124,34 @@ class TestDownsample:
         assert_allclose(result, expected, strict=True)
 
 
+#    def test_upsample(nddata, remainder, factor, method, means):
+#        result = core.upsample(nddata, factor=factor)
+
+
 def test_downsample_errors():
     data = np.arange(1, 9, dtype=float)
 
     with pytest.raises(ValueError, match="'data' should at least be two-dimensional"):
-        downsample(data, factor=2)
+        core.downsample(data, factor=2)
 
     data = data.reshape(8, 1)
     data = np.repeat(data, 3, axis=1)
 
     with pytest.raises(ValueError, match="'factor' should be a positive integer"):
-        downsample(data, factor=0)
+        core.downsample(data, factor=0)
 
     with pytest.raises(ValueError, match="'method' should be one of 'mean' or 'sum'"):
-        downsample(data, factor=2, method="product")
+        core.downsample(data, factor=2, method="product")
 
     with pytest.raises(
         ValueError,
         match="'remainder' should be one of 'droptail', 'addtail', 'drophead' or 'addhead'",
     ):
-        downsample(data, factor=2, remainder="dropstart")
+        core.downsample(data, factor=2, remainder="dropstart")
+
+
+@pytest.mark.parametrize("factor", [2, 3, 4])
+def test_upsample(nddata, factor):
+    result = core.upsample(nddata, factor=factor)
+    expected = np.repeat(nddata, factor, axis=0)
+    assert_allclose(result, expected, strict=True)
