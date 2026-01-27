@@ -264,6 +264,35 @@ class Candidate:
             ndm=ndm,
         )
 
+    def signal2noise(
+        self,
+        dminterval: FInterval,
+        ndm: int = 50,
+        reffreq: float | None = None,
+        badchannels: set | list | np.ndarray | None = None,
+        backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+        bkg_method: str = "median",
+        background: tuple[float | dict, float | dict] = None,
+        peak: bool = True,
+        peak_interval: tuple[int, int] | None = None,
+    ):
+        print(backgroundrange)
+        dmrange, ratios = core.signal2noise(
+            self.data,
+            dminterval=dminterval,
+            freqs=self.freqs,
+            dtsamp=self.header["tsamp"],
+            reffreq=reffreq,
+            badchannels=badchannels,
+            ndm=ndm,
+            backgroundrange=backgroundrange,
+            bkg_method=bkg_method,
+            background=background,
+            peak=peak,
+        )
+
+        return dmrange, ratios
+
 
 def openfile(name: Path | str):
     return Candidate.fromfile(name)
