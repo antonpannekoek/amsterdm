@@ -191,7 +191,7 @@ def calc_background(
 
     backgroundrange: iterable of 2-tuples
         Iterable of ranges as fractions of the sample dimension of the data, that is,
-        each iterable item contains a start and end fraction of the first dimension of
+        each iterable item contains a begin and end fraction of the first dimension of
         the data that corresponds to a background area
 
     method : str, default="median"
@@ -334,19 +334,17 @@ def dedisperse(
     if reffreq is None:
         reffreq = np.max(freqs)
 
+    # calculate time shifts and convert to bin shifts
+    time_shift = dmconst * dm * (reffreq**-2.0 - freqs**-2.0)
+    # round to nearest integer
+    bin_shift = np.rint((time_shift / tsamp)).astype(np.int64)
+    # checks
+    assert len(bin_shift) == data.shape[0]
+
     # init empty array to store dedisp data in
     newdata = np.empty_like(data)
     # `empty_like` copies the mask from `data`
     np.testing.assert_equal(newdata.mask, data.mask)
-
-    # calculate time shifts and convert to bin shifts
-    time_shift = dmconst * dm * (reffreq**-2.0 - freqs**-2.0)
-
-    # round to nearest integer
-    bin_shift = np.rint((time_shift / tsamp)).astype(np.int64)
-
-    # checks
-    assert len(bin_shift) == data.shape[0]
 
     # dedisperse by rolling back the channels
     for i, shift in enumerate(bin_shift):
@@ -553,20 +551,22 @@ def create_dynspectrum(
         xx = np.ma.array(data[:, 0, :])
         yy = np.ma.array(data[:, 1, :])
 
-    if badchannels:
+    if badchannels is not None:
         rowids = (
             list(badchannels)
             if not isinstance(badchannels, (list, np.ndarray))
             else badchannels
         )
+
         xx[:, rowids] = np.ma.masked
         if yy is not None:
             yy[:, rowids] = np.ma.masked
 
     if dm:
-        xx = dedisperse(xx.T, dm["dm"], dm["freq"], dm["tsamp"]).T
+        reffreq = dm.get("reffreq")
+        xx = dedisperse(xx.T, dm["dm"], dm["freq"], dm["tsamp"], reffreq=reffreq).T
         if yy is not None:
-            yy = dedisperse(yy.T, dm["dm"], dm["freq"], dm["tsamp"]).T
+            yy = dedisperse(yy.T, dm["dm"], dm["freq"], dm["tsamp"], reffreq=reffreq).T
 
     if background:
         # Use a given background
@@ -723,6 +723,7 @@ def bowtie(
     dm: FInterval,
     freqs: np.ndarray,
     tsamp: float,
+    reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "median",
@@ -730,8 +731,8 @@ def bowtie(
 ) -> np.ndarray:
     """Create the data for a bowtie plot: varying DM versus time/samples
 
-    Parameters
-    ----------
+    Arguments
+    ---------
     data : np.ndarray
         data containing freq on the y-axis and time on the x-axis
 
@@ -748,6 +749,11 @@ def bowtie(
 
     tsamp : float
         sampling time interval in seconds
+
+    reffreq: float or None
+
+        reference frequency used for dispersion. If None, use the
+        highest value of the given `freqs`.
 
     badchannels : set | list | np.ndarray | None, default=None
         numbers of channels to flag/ignore
@@ -770,7 +776,7 @@ def bowtie(
 
     Returns
     -------
-    np.ndarray
+    two dimensional array containing the bowtie-plot data
 
     """
 
@@ -793,7 +799,7 @@ def bowtie(
         xx = np.ma.array(data[:, 0, :])
         yy = np.ma.array(data[:, 1, :])
 
-    if badchannels:
+    if badchannels is not None:
         rowids = (
             list(badchannels)
             if not isinstance(badchannels, (list, np.ndarray))
@@ -803,9 +809,9 @@ def bowtie(
         if yy is not None:
             yy[:, rowids] = np.ma.masked
 
-    xx = dedisperse(xx.T, dm_center, freqs, tsamp).T
+    xx = dedisperse(xx.T, dm_center, freqs, tsamp, reffreq).T
     if yy is not None:
-        yy = dedisperse(yy.T, dm_center, freqs, tsamp).T
+        yy = dedisperse(yy.T, dm_center, freqs, tsamp, reffreq).T
 
     # Bandpass correction
     mean, std = calc_background(xx, backgroundrange, method=bkg_method)
