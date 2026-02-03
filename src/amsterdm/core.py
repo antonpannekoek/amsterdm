@@ -109,11 +109,155 @@ def upsample(
     return np.repeat(data, factor, axis=0)
 
 
+def findpeaklc(
+    data: np.ndarray | np.ma.MaskedArray,
+    searchrange: tuple[float, float] = (0, 1),
+) -> int:
+    """Find the peak of the light curve, within an optional search range
+
+    data: the one-dimensional light curve intensity data
+
+    searchrange: a 2-tuple of floats
+        Fractional start and end of the search range
+
+    This simply returns the index of the maximum of `data`, potentially
+    restricted to within a fraction of the data by `searchrange`.
+
+    """
+
+    n = len(data)
+    low, high = int(searchrange[0] * n + 0.5), int(searchrange[1] * n + 0.5)
+    index = np.argmax(data[low:high]) + low
+    return index
+
+
+def findrangelc(
+    data: np.ndarray | np.ma.MaskedArray,
+    kappa: float = 5,
+    minkappa: float = 3,
+    window: int = 7,
+    maxiter: int = 10,
+    minvalues: int = 10,
+    searchrange: tuple[float, float] = (0, 1),
+):
+    """Find the range of the active light curve.
+
+    data: the one-dimensional light curve intensity data
+
+    kappa: float
+        find peaks `kappa` times the noise above
+
+    minkappa: minimal noise value to be included
+
+    window: integer
+        number of bins to use in the rolling average.
+
+    searchrange: a 2-tuple of floats
+        Fractional start and end of the search range
+
+    The algorithm first smooths the light curve by using a rolling
+    average with `window` size.
+
+    It then iteratively (up to `maxiter` times)
+      - calculates a mean value
+      - find all values below that mean
+      - removes all non-found values
+    Iteration stops when there are less than `minvalues` (default of
+    10) values left.
+
+    The remaining data are seen as the background. It takes the
+    indices of the remaining data, and calculates a median and
+    standard deviation from the non-smoothed data for this selection
+    of indices; this is used as a first estimate for the background
+    value and its noise.
+
+    It then finds all values in the smoothed data that are `kappa`
+    times noise above the background. The relevant indices are
+    combined into sections, and each of these sections are extended on
+    both sides to a `minkappa` times the noise above the
+    background. The latter step is done separately, so that incidental
+    low-sigma spikes above the background are not included, only when
+    adjacent to a larger foreground region.
+
+    These sections then define the foreground area where there is an
+    active light curve.
+
+    The sections are then returned, as a list of 2-tuples with start
+    and end indices.
+
+    Returns
+       A tuple of 2 items:
+       - A list of 2-tuples of integers. These represent the start and end indices
+         of sections where the light curve is active.
+       - a tuple of the estimated background value and standard deviation
+
+    """
+
+    n = len(data)
+    low, high = int(searchrange[0] * n + 0.5), int(searchrange[1] * n + 0.5)
+    data = data[low:high]
+
+    # Smooth the data with a window
+    sdata = np.convolve(data, np.ones(window), mode='same') / window
+
+    selection = np.ones(len(sdata), dtype=bool)
+    for i in range(maxiter):
+        mean = sdata[selection].mean()
+        selection = selection & (sdata < mean)
+        if selection.sum() < minvalues:
+            break
+    bkgval = np.ma.median(data[selection])
+    bkgstd = data[selection].std()
+
+    above = sdata > bkgval + kappa * bkgstd
+
+    indices = np.where(np.diff(above))[0]
+    if above[0]:  # first section starts above the background
+        indices = np.hstack([[0], indices])
+    # Append a closing index if there is an open section at the end
+    if len(indices) % 2 == 1:
+        indices = np.append(indices, [n-1])
+
+    indices += low  # Adjust for the original data range
+    # Indices containing everything below the kappa-sigma background
+    bkgindices = np.where(sdata <= (bkgval + minkappa * bkgstd))[0]
+    # Create the sections pairs
+    sections = []
+    for index1, index2 in zip(indices[::2], indices[1::2]):
+        # Find the first index to the left of index1 that is above the background
+        sel = bkgindices < index1
+        if sel.any():
+            index = bkgindices[sel][-1] + 1
+            if index < index1:
+                index1 = index
+        # Find the first index to the right of index2 that is above the background
+        sel = bkgindices > index2
+        if sel.any():
+            index = bkgindices[sel][0] - 1
+            if index > index2:
+                index2 = index
+        sections.append([index1, index2])
+    # Combine overlapping sections
+    remove = []
+    for i, (section1, section2) in enumerate(zip(sections[:-1], sections[1:])):
+        if section1[1] >= section2[0]:
+            # Extend section2
+            section2[0] = section1[0]
+            # and remove section1
+            remove.append(i)
+    for i in reversed(remove):
+        sections.pop(i)
+    sections = [(section[0] + low, section[1] + low) for section in sections]
+
+    return sections, (bkgval, bkgstd)
+
+
 def calc_background_old(
     data: np.ndarray | np.ma.MaskedArray,
     datarange: tuple[float, float] = (0.3, 0.7),
     method: str = "median",
 ) -> tuple[np.ndarray, np.ndarray]:
+
     """
     Return background and its standard deviation for each channel
 
