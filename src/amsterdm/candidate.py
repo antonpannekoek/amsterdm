@@ -1,3 +1,4 @@
+from contextlib import suppress
 from functools import cached_property
 from io import BufferedIOBase
 from pathlib import Path, PurePath
@@ -5,13 +6,9 @@ from pathlib import Path, PurePath
 import numpy as np
 
 from . import core
-from .constants import DEFAULT_BACKGROUND_RANGE
-
+from .constants import DEFAULT_BACKGROUND_RANGE, SOD
 from .io import read_fileformat, read_filterbank, read_fits
 from .utils import FInterval
-
-
-SOD = 60 * 60 * 24
 
 
 class Candidate:
@@ -58,21 +55,128 @@ class Candidate:
         nfreq = self.header["nchans"]
         foff = self.header["foff"]
         start = self.header["fch1"]
-        freqs = start + np.arange(nfreq) * foff
+        fanchor = self.header["fanchor"]
+        # Calculate the central point offset in the first channel
+        offset = 0
+        direc = 0
+        if fanchor == "top":  # anchor at the higher frequency side
+            direc = 1
+        elif fanchor == "bottom":  # anchor at the lower frequency side
+            direc = -1
+        if foff < 0:
+            offset = direc * foff / 2
+        else:
+            offset = -direc * foff / 2
+        freqs = start + offset + np.arange(nfreq) * foff
         return freqs
 
     @cached_property
     def times(self):
+        """Times in MJD
+
+        Use the `reltimes` property for higher resolution timestamps
+        """
+
         start = self.header["tstart"]
         dt = self.header["tsamp"] / SOD
         nsamp = self.data.shape[0]
         times = start + np.arange(nsamp) * dt
         return times
 
+    @cached_property
+    def reltimes(self):
+        """Relative times in seconds"""
+        dt = self.header["tsamp"]
+        nsamp = self.data.shape[0]
+        times = np.arange(nsamp) * dt
+        return times
+
+    def channel2freq(self, channel):
+        foff = self.header["foff"]
+        start = self.header["fch1"]
+        freq = start + channel * foff
+        return freq
+
+    def freq2channel(self, freq):
+        foff = self.header["foff"]
+        start = self.header["fch1"]
+        channel = np.round((freq - start) / foff)
+        return channel
+
+    def sample2time(self, sample):
+        start = self.header["tstart"]
+        dt = self.header["tsamp"] / SOD
+        time = start + sample * dt
+        return time
+
+    def time2sample(self, time):
+        start = self.header["tstart"]
+        dt = self.header["tsamp"] / SOD
+        sample = np.round((time - start) / dt)
+        return sample
+
     def close(self):
         """Close the underlying file object"""
         if self._file and hasattr(self._file, "close"):
             self._file.close()
+
+    def downsample(
+        self, factor: int = 1, remainder: str = "droptail", method: str = "mean"
+    ):
+        """Downsample the data by `factor` along the sample/time dimension. Bins
+        can be averaged (default) or summed together. The
+        corresponding sample interval and times property are resampled
+        accordingly.
+
+        If the sample/time dimension doesn't match an integer number
+        of `factor`, the remainder can be dropped, either from the
+        start ("drophead") or the end ("droptail"; the default); or
+        the remainder can be added to the last bin ("addtail") or be
+        added to the first bin ("addhead").
+
+        If the number of available bins in the data is smaller than
+        `factor`, all bins are combined, even when `method` is one of
+        "droptail" or "drophead".
+
+        Raises a `ValueError`
+            - for an incorrect `factor` (less than 1)
+            - for an incorrect remainder value
+            - for an incorrect method
+
+        """
+
+        self.data = core.downsample(
+            self.data, factor=factor, remainder=remainder, method=method
+        )
+        self.header["tsamp"] *= factor
+        # Clear the times and reltimes cached properties by deleting
+        # it (if it was never used before, it won't exist: ignore that case).
+        with suppress(AttributeError):
+            del self.times
+        with suppress(AttributeError):
+            del self.reltimes
+
+    def upsample(self, factor: int = 1):
+        """Rebin the data to a higher resolution along the sample/time
+        dimension. The sampling interval and times property are
+        adjusted accordingly.
+
+        Sample bins are simply split into `factor` new bins, with the same
+        value as that of the original bin.
+
+        Under the hood, this simply uses `numpy.repeat` for the first
+        axis.
+
+        """
+
+        self.data = core.upsample(self.data, factor=factor)
+        self.header["tsamp"] /= factor
+        # Clear the times and reltimes cached properties by deleting
+        # it (if it was never used before, it won't exist: ignore that case).
+        with suppress(AttributeError):
+            del self.times
+        with suppress(AttributeError):
+            del self.reltimes
 
     def create_dynspectrum(
         self,
