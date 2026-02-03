@@ -5,11 +5,22 @@ from typing import NamedTuple
 import numpy as np
 
 
+__all__ = ["FInterval", "mask2d", "coord2deg", "symlog", "symlog10"]
+
+
 class FInterval(NamedTuple):
     """Simple tuple to hold a floating point interval"""
 
     start: float
     end: float
+
+
+def mask2d(data, rowids):
+    """Mask rows in a two-dimensional array"""
+
+    data = np.ma.masked_array(data, mask=False)
+    data[:, rowids] = np.ma.masked
+    return data
 
 
 def coord2deg(coord, factor=1):

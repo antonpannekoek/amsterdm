@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST
@@ -14,9 +16,12 @@ __all__ = [
 ]
 
 
+logger = logging.getLogger(__package__)
+
+
 def downsample(
     data: np.ndarray | np.ma.MaskedArray,
-    factor: int = 8,
+    factor: int = 1,
     remainder: str = "droptail",
     method: str = "mean",
 ) -> np.ndarray | np.ma.MaskedArray:
@@ -91,7 +96,7 @@ def downsample(
 
 def upsample(
     data: np.ndarray,
-    factor: int = 2,
+    factor: int = 1,
 ) -> np.ndarray:
     """Rebin the data to a higher resolution along the first (sample/time) axis
 
@@ -198,7 +203,7 @@ def findrangelc(
     data = data[low:high]
 
     # Smooth the data with a window
-    sdata = np.convolve(data, np.ones(window), mode='same') / window
+    sdata = np.convolve(data, np.ones(window), mode="same") / window
 
     selection = np.ones(len(sdata), dtype=bool)
     for i in range(maxiter):
@@ -216,7 +221,7 @@ def findrangelc(
         indices = np.hstack([[0], indices])
     # Append a closing index if there is an open section at the end
     if len(indices) % 2 == 1:
-        indices = np.append(indices, [n-1])
+        indices = np.append(indices, [n - 1])
 
     indices += low  # Adjust for the original data range
     # Indices containing everything below the kappa-sigma background
@@ -257,7 +262,6 @@ def calc_background_old(
     datarange: tuple[float, float] = (0.3, 0.7),
     method: str = "median",
 ) -> tuple[np.ndarray, np.ndarray]:
-
     """
     Return background and its standard deviation for each channel
 
@@ -1008,16 +1012,17 @@ def bowtie(
 
 def signal2noise(
     data: np.ndarray,
-    dminterval: FInterval,
+    dms: np.ndarray,
     freqs: np.ndarray,
     dtsamp: float,
     reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
-    ndm: int = 50,
+    datarange: FInterval | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "median",
     background: tuple[float | dict, float | dict] = None,
     peak: bool = True,
+    peak_interval: FInterval | None = None,
 ):
     """Calculate peak signal to noise values over a range of DM
 
@@ -1085,6 +1090,13 @@ def signal2noise(
         Optimize for the peak value. If False, optimize for the
         overall (integrated) light curve intensity.
 
+    peak_interval: 2-tuple of float
+
+        Fraction of the light curve where the peak is located. Setting this
+        interval correctly reduces the amount of computation needed, and
+        can speed up this function significantly.
+
+        The background is still calculated for the full sample range.
 
     If the `background` argument is not `None`, `backgroundrange` and
     `bkg_method` are ignored. If `bkg_extra` is also set, the returned
@@ -1100,6 +1112,7 @@ def signal2noise(
     if isinstance(backgroundrange[0], (float, int)):
         backgroundrange = [backgroundrange]
 
+    dminterval = (dms[0], dms[-1])
     dm_center = (dminterval[0] + dminterval[1]) / 2
 
     # Copy the data, flag bad channels and get a background estimate for the central DM
@@ -1129,6 +1142,7 @@ def signal2noise(
         if yy is not None:
             yy[:, rowids] = np.ma.masked
 
+    logger.info("Dedispersing xx & yy")
     xx = dedisperse(xx.T, dm_center, freqs, dtsamp, reffreq=reffreq).T
     if yy is not None:
         yy = dedisperse(yy.T, dm_center, freqs, dtsamp, reffreq=reffreq).T
@@ -1151,6 +1165,7 @@ def signal2noise(
             xx_bkgstd = yy_bkgstd = bkgstd
     else:
         # Calculate the background from the data
+        logger.info("background calculation")
         xx_bkgmean, xx_bkgstd = calc_background(xx, backgroundrange, method=bkg_method)
         if yy is not None:
             yy_bkgmean, yy_bkgstd = calc_background(
@@ -1170,8 +1185,9 @@ def signal2noise(
     # xx and yy are now flagged, bandpass-corrected and dedispersed at the mean DM
     # This provides the starting point for the iteration through dmrange
 
-    # dmrange is relative to the mean DM
-    dmrange = np.linspace(dminterval[0], dminterval[1], ndm) - dm_center
+    # If datarange is set, limit the data to this section.
+    # This can provide faster iteration through the varying DM than (relative)
+    # dedispersion of the full data set
 
     # Calculate overall standard deviation (single value)
     # for the light curve
@@ -1186,17 +1202,30 @@ def signal2noise(
     idx_bkg = np.concatenate(idx_bkg)
     lcstd = lightcurve[idx_bkg].std()
 
+    if peak_interval:
+        # Convert interval from fraction to integer samples
+        n = xx.shape[0]
+        # Note: +1.5 to have the +1 offset at the upper limit
+        interval = slice(
+            int(peak_interval[0] * n + 0.5), int(peak_interval[1] * n + 1.5)
+        )
+        xx = xx[interval, ...]
+        if yy is not None:
+            yy = yy[interval, ...]
+
+    logger.info("Iterating over %d DMs from %.4f to %.4f", len(dms), dms[0], dms[-1])
     ratios = []
-    for dm in dmrange:
+    for i, dm in enumerate(dms):
+        logger.debug("dm = %.4f", dm)
+        dm -= dm_center
         xxdd = dedisperse(xx.T, dm, freqs, dtsamp, reffreq=reffreq).T
-        if yy:
+        if yy is not None:
             yydd = dedisperse(yy.T, dm, freqs, dtsamp, reffreq=reffreq).T
             intensity = xxdd + yydd
         else:
             intensity = xxdd
 
         waterfall = np.ma.filled(intensity, 0)
-
         # Sum across frequencies to obtain the light curve
         lightcurve = waterfall.sum(axis=1)
 
@@ -1204,4 +1233,4 @@ def signal2noise(
         ratio = value / lcstd
         ratios.append(ratio)
 
-    return dmrange, np.asarray(ratios)
+    return np.asarray(ratios)

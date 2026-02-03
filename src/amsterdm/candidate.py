@@ -43,6 +43,9 @@ class Candidate:
         self.path = Path(self._file.name)
         self.filename = self.path.name
 
+        if "fanchor" not in self.header:
+            self.header["fanchor"] = "mid"
+
     # Make the class a context manager to support the 'with' statement
     def __enter__(self):
         return self
@@ -370,32 +373,30 @@ class Candidate:
 
     def signal2noise(
         self,
-        dminterval: FInterval,
-        ndm: int = 50,
+        dms: np.ndarray,
         reffreq: float | None = None,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
         bkg_method: str = "median",
         background: tuple[float | dict, float | dict] = None,
         peak: bool = True,
-        peak_interval: tuple[int, int] | None = None,
+        peak_interval: FInterval | None = None,
     ):
-        print(backgroundrange)
-        dmrange, ratios = core.signal2noise(
+        ratios = core.signal2noise(
             self.data,
-            dminterval=dminterval,
+            dms=dms,
             freqs=self.freqs,
             dtsamp=self.header["tsamp"],
             reffreq=reffreq,
             badchannels=badchannels,
-            ndm=ndm,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
             background=background,
             peak=peak,
+            peak_interval=peak_interval,
         )
 
-        return dmrange, ratios
+        return ratios
 
 
 def openfile(name: Path | str):
