@@ -52,8 +52,6 @@ class CandidatePlot(param.Parameterized):
     # Simple flag for cases where the plot method needs to be explicitly triggered
     # update_data = param.Boolean(default=False)
     update_plot = param.Integer(default=0)
-    sample_start = param.Integer(default=0, label="Data sample start")
-    sample_end = param.Integer(default=0, label="Data sample end")
     sample_reset = param.Action(label="Reset range")
     bkg_left = param.Integer(default=0, label="Left limit")
     bkg_right = param.Integer(default=0, label="Right limit")
@@ -69,11 +67,6 @@ class CandidatePlot(param.Parameterized):
         self.range_stream = hv.streams.RangeX()
 
         self.ntotal = self.candidate.data.shape[0]
-        # Set the sample end based on the actual data
-        # (since this can't be done in the class definition)
-        self.sample_end = self.ntotal
-        self.param.sample_end.default = self.sample_end
-        self.sample_reset = self._reset_sample_range
 
         # Set the background left and right cutoffs based on the actual data
         self.bkg_left = self.ntotal // 3
@@ -87,9 +80,6 @@ class CandidatePlot(param.Parameterized):
 
         # internal attribute to keep track of manual selection of the sample range
         self._x_viewrange = (None, None)
-
-        self.param.sample_end.bounds = (1, self.candidate.data.shape[0])
-        # self.param.sample_reset.default = self._reset_range
 
         self.dm_slider = pn.Param(
             self.param.dm, widgets={"dm": pn.widgets.FloatSlider}
@@ -107,8 +97,6 @@ class CandidatePlot(param.Parameterized):
                 "logimage",
                 "loglc",
                 "trunclc",
-                "sample_start",
-                "sample_end",
                 "bkg_left",
                 "bkg_right",
             ],
@@ -153,11 +141,6 @@ class CandidatePlot(param.Parameterized):
         self._calc_data()
 
     def _reset_sample_range(self, _):
-        self.param.update(
-            sample_start=self.param.sample_start.default,
-            sample_end=self.param.sample_end.default,
-        )
-
         self._calc_data()
 
     def add_physical_axes(self, plot, element):
@@ -220,16 +203,16 @@ class CandidatePlot(param.Parameterized):
         self._calc_data()
 
     def _calc_data(self):
-        samplerange = slice(self.sample_start, self.sample_end)
-        datarange = (self.bkg_left / self.ntotal, self.bkg_right / self.ntotal)
-        self.stokesI, self.bkg = self.candidate.calc_intensity(
+        backgroundrange = [
+            [0, self.bkg_left / self.ntotal],
+            [self.bkg_right / self.ntotal, 1],
+        ]
+        self.stokesI, self.bkg = self.candidate.create_dynspectrum(
             self.dm,
-            {128 - value for value in self.badchannels},
-            datarange,
-            samplerange=samplerange,
+            [128 - value for value in self.badchannels],
+            backgroundrange=backgroundrange,
             bkg_extra=True,
         )
-
         self.stokesI = np.ma.filled(
             self.stokesI, np.nan
         )  # Replace the (temporary) mask with NaNs for plotting purposes and `nanpercentile`
@@ -253,7 +236,7 @@ class CandidatePlot(param.Parameterized):
 
     @param.depends("update_plot")
     def plot_lc(self, x_range=None, y_range=None):
-        samples = np.arange(self.sample_start, self.sample_end)
+        samples = np.arange(self.lc.shape[0])
         lcplot = hv.Curve((samples, self.lc), "samples", "I").opts(
             width=self.width, framewise=True
         )
@@ -264,7 +247,7 @@ class CandidatePlot(param.Parameterized):
 
     @param.depends("update_plot", "cmin", "cmax", "colormap")
     def plot_waterfall(self, x_range=None, y_range=None):
-        samples = np.arange(self.sample_start, self.sample_end)
+        samples = np.arange(self.stokesI.shape[0])
         ds = xr.Dataset(
             {"data": (["samples", "channel"], self.stokesI)},
             coords={"channel": self.channels, "samples": samples},
@@ -333,16 +316,6 @@ class CandidatePlot(param.Parameterized):
         )[0]
         cmin = pn.Param(self.param.cmin, widgets={"cmin": pn.widgets.FloatInput})[0]
         cmax = pn.Param(self.param.cmax, widgets={"cmax": pn.widgets.FloatInput})[0]
-        sample_start = pn.Param(
-            self.param.sample_start,
-            widgets={"sample_start": {"type": pn.widgets.IntInput, "width": 100}},
-        )
-        sample_end = pn.Param(
-            self.param.sample_end,
-            widgets={"sample_end": {"type": pn.widgets.IntInput, "width": 100}},
-        )
-        samplerange = pn.Row(sample_start, sample_end, self.param.sample_reset)
-
         bkg_left = pn.Param(
             self.param.bkg_left,
             widgets={"bkg_left": {"type": pn.widgets.IntInput, "width": 100}},
@@ -410,10 +383,10 @@ class CandidatePlot(param.Parameterized):
 
         data = pn.Card(
             pn.Column(
-                samplerange,
+                # samplerange,
                 badchanlist,
             ),
-            title="Data & bad channels",
+            title="Channels",
             collapsed=False,
         )
         background = pn.Card(
