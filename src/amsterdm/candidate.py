@@ -380,6 +380,7 @@ class Candidate:
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
         bkg_method: str = "median",
         ndm: int = 50,
+        reffreq: float | None = None,
     ) -> np.ndarray:
         return core.bowtie(
             self.data,
@@ -390,6 +391,7 @@ class Candidate:
             backgroundrange,
             bkg_method=bkg_method,
             ndm=ndm,
+            reffreq=reffreq,
         )
 
     def signal2noise(

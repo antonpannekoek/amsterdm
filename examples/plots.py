@@ -125,6 +125,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             ax.figure.savefig(outfile)
 
         if "all" in plots or "ratio" in plots or "s2n" in plots:
+            section = None
             if sections:
                 nsamples = candidate.data.shape[0]
                 # combine sections into one big section

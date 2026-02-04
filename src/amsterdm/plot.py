@@ -208,6 +208,7 @@ def bowtie(
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "median",
     ndm: int = 50,
+    reffreq: float | None = None,
     trange: slice | EllipsisType = Ellipsis,
     ax=None,
     **options,
@@ -244,6 +245,11 @@ def bowtie(
     ndm : int, default=50
         Number of DM samples along the y-axis
 
+    reffreq: float or None
+
+        reference frequency used for dispersion. If None, use the
+        highest value of the given `freqs`.
+
     ax : Matplotlib Axes, default=None
         If given, use this axes to draw the graph on
     """
@@ -257,6 +263,7 @@ def bowtie(
         backgroundrange,
         bkg_method,
         ndm,
+        reffreq=reffreq,
     )
 
     # Calculate the extent for the imshow axes
