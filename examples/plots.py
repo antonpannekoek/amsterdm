@@ -169,7 +169,9 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
                 backgroundrange=background,
                 peak=peak,
                 peak_interval=section,
+                title=path.stem,
             )
+
             outfile = pngfile.with_stem(path.stem + "-grid")
             ax.figure.savefig(outfile)
 
