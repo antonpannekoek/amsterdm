@@ -53,6 +53,27 @@ class Candidate:
     def __exit__(self, type, value, traceback):
         self.close()
 
+    @property
+    def cfreq(self):
+        """Central frequency"""
+        midchan = self.header["nchans"] / 2
+        foff = self.header["foff"]
+        start = self.header["fch1"]
+        fanchor = self.header["fanchor"]
+        # Calculate the central point offset in the first channel
+        offset = 0
+        direc = 0
+        if fanchor == "top":  # anchor at the higher frequency side
+            direc = 1
+        elif fanchor == "bottom":  # anchor at the lower frequency side
+            direc = -1
+        if foff < 0:
+            offset = direc * foff / 2
+        else:
+            offset = -direc * foff / 2
+        cfreq = start + offset + midchan * foff
+        return cfreq
+
     @cached_property
     def freqs(self):
         nfreq = self.header["nchans"]
@@ -359,6 +380,7 @@ class Candidate:
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
         bkg_method: str = "median",
         ndm: int = 50,
+        reffreq: float | None = None,
     ) -> np.ndarray:
         return core.bowtie(
             self.data,
@@ -369,6 +391,7 @@ class Candidate:
             backgroundrange,
             bkg_method=bkg_method,
             ndm=ndm,
+            reffreq=reffreq,
         )
 
     def signal2noise(

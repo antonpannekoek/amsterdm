@@ -891,11 +891,11 @@ def bowtie(
     dm: FInterval,
     freqs: np.ndarray,
     tsamp: float,
-    reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "median",
     ndm: int = 50,
+    reffreq: float | None = None,
 ) -> np.ndarray:
     """Create the data for a bowtie plot: varying DM versus time/samples
 
@@ -997,7 +997,7 @@ def bowtie(
     tie = []
     for dm in dmrange:
         xxdd = dedisperse(xx.T, dm, freqs, tsamp).T
-        if yy:
+        if yy is not None:
             yydd = dedisperse(yy.T, dm, freqs, tsamp).T
             stokesI = xxdd + yydd
         else:

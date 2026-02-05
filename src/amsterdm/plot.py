@@ -13,6 +13,7 @@ figures, one will likely want to create their own figures manually.
 from contextlib import suppress
 from types import EllipsisType
 
+from astropy.time import Time
 import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -20,7 +21,7 @@ from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from .candidate import Candidate
-from .constants import DEFAULT_BACKGROUND_RANGE
+from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST
 from .utils import FInterval, symlog
 
 
@@ -207,6 +208,7 @@ def bowtie(
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "median",
     ndm: int = 50,
+    reffreq: float | None = None,
     trange: slice | EllipsisType = Ellipsis,
     ax=None,
     **options,
@@ -243,6 +245,11 @@ def bowtie(
     ndm : int, default=50
         Number of DM samples along the y-axis
 
+    reffreq: float or None
+
+        reference frequency used for dispersion. If None, use the
+        highest value of the given `freqs`.
+
     ax : Matplotlib Axes, default=None
         If given, use this axes to draw the graph on
     """
@@ -256,6 +263,7 @@ def bowtie(
         backgroundrange,
         bkg_method,
         ndm,
+        reffreq=reffreq,
     )
 
     # Calculate the extent for the imshow axes
@@ -359,6 +367,7 @@ def grid(
     bkg_method: str = "median",
     peak: bool = True,
     peak_interval: FInterval | None = None,
+    coherent_dm: float = 0,
     ax=None,
     **options,
 ):
@@ -374,12 +383,21 @@ def grid(
         # Create a subfigure occupying the same region
         figure = fig.add_subfigure(subspec)
 
-    gs = GridSpec(2, 3, figure=figure, width_ratios=[0.1, 1, 0.5], height_ratios=[1, 2])
+    title = options.get("title", "")
+    gs = GridSpec(
+        2,
+        3,
+        figure=figure,
+        width_ratios=[0.1, 1, 0.5],
+        height_ratios=[1, 2],
+        wspace=0.05,
+        hspace=0.05,
+    )
     lc_ax = figure.add_subplot(gs[0, 1])
+    info_ax = figure.add_subplot(gs[0, 2])
     w_ax = figure.add_subplot(gs[1, 1])
     c_ax = figure.add_subplot(gs[1, 0])
     s2n_ax = figure.add_subplot(gs[1, 2])
-
     _, image = waterfall(
         candidate,
         dm=dm,
@@ -416,6 +434,33 @@ def grid(
     )
     s2n_ax.yaxis.set_label_position("right")
     s2n_ax.yaxis.tick_right()
-    s2n_ax.set_title("S / N")
+    if peak:
+        s2n_ax.set_title("Peak signal to noise")
+    else:
+        s2n_ax.set_title("Signal to noise")
+
+    # Add overall info in top-right corner
+    incoherent_dm = coherent_dm - dm
+    smearing = abs(
+        2 * DMCONST * incoherent_dm * candidate.header["foff"] * candidate.cfreq**-3
+    )
+    obsdate = candidate.header.get("tstart")
+    obsdate = (
+        Time(obsdate, format="mjd").strftime("%Y-%m-%dT%H:%M:%S.%f") if obsdate else "-"
+    )
+    # smearing = 2 * DMCONST * incoherent_dm * candidate.channel_bandwidth_mhz * central_frequency_mhz ** -3
+    info_ax.axis("off")
+    transform = info_ax.transAxes
+    info_ax.text(
+        0.0, 0.9, f"Burst: {title}", transform=transform, ha="left", fontsize=16
+    )
+    info_ax.text(0.0, 0.7, f"Obs-date: {obsdate}")
+    info_ax.text(0.0, 0.6, f"DM: {dm:.3f}", transform=transform, ha="left")
+    info_ax.text(
+        0.0, 0.5, f"Coherent DM: {coherent_dm:.3f}", transform=transform, ha="left"
+    )
+    info_ax.text(0.0, 0.4, f"Smearing: {smearing:g}")
+    now = Time.now().strftime("%Y-%m-%dT%H:%M:%S")
+    info_ax.text(1.2, 1.1, f"Created {now}", ha="right", fontsize=9)
 
     return w_ax
