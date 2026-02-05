@@ -39,7 +39,7 @@ where = ["src"]
 
 [tool.ruff]
 # Ignore the auto-generated file
-include = ["src/amsterdm/*.py"]
+include = ["src/amsterdm/*.py", "tests/*.py", "examples/*.py"]
 exclude = ["src/amsterdm/version.py"]
 
 [tool.ruff.lint]
