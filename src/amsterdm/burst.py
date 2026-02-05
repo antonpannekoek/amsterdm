@@ -1,5 +1,6 @@
 from contextlib import suppress
 from functools import cached_property
+import logging
 from io import BufferedIOBase
 from pathlib import Path, PurePath
 
@@ -9,6 +10,9 @@ from . import core
 from .constants import DEFAULT_BACKGROUND_RANGE, SOD
 from .io import read_fileformat, read_filterbank, read_fits
 from .utils import FInterval
+
+
+logger = logging.getLogger(__package__)
 
 
 class Burst:
@@ -46,6 +50,8 @@ class Burst:
         if "fanchor" not in self.header:
             self.header["fanchor"] = "mid"
 
+        self._fix_missing()
+
     # Make the class a context manager to support the 'with' statement
     def __enter__(self):
         return self
@@ -53,14 +59,25 @@ class Burst:
     def __exit__(self, type, value, traceback):
         self.close()
 
-    @property
-    def cfreq(self):
-        """Central frequency"""
-        midchan = self.header["nchans"] / 2
+    def _fix_missing(self):
+        """Try and fix any missing keywords"""
+        if "nchans" not in self.header:
+            logger.warning("'nchans' not found in header; determining from the data")
+            self.header["nchans"] = self.data.shape[-1]
+        if "fch1" not in self.header:
+            if "fchan1" in self.header:
+                self.header["fch1"] = self.header["fchan1"]
+            else:
+                logger.critical(
+                    "'fch1' keyword not found in header; data can't be used"
+                )
+                raise ValueError("'fhc1' keyword not found in header information")
+
+    @cached_property
+    def freq_offset(self):
+        """Get the central point offset in the first channel"""
+        fanchor = self.header["fanchor"]  # one of mid, top or bottom
         foff = self.header["foff"]
-        start = self.header["fch1"]
-        fanchor = self.header["fanchor"]
-        # Calculate the central point offset in the first channel
         offset = 0
         direc = 0
         if fanchor == "top":  # anchor at the higher frequency side
@@ -71,7 +88,15 @@ class Burst:
             offset = direc * foff / 2
         else:
             offset = -direc * foff / 2
-        cfreq = start + offset + midchan * foff
+        return offset
+
+    @property
+    def cfreq(self):
+        """Central frequency"""
+        midchan = self.header["nchans"] / 2
+        foff = self.header["foff"]
+        start = self.header["fch1"]
+        cfreq = start + self.freq_offset + midchan * foff
         return cfreq
 
     @cached_property
@@ -79,19 +104,7 @@ class Burst:
         nfreq = self.header["nchans"]
         foff = self.header["foff"]
         start = self.header["fch1"]
-        fanchor = self.header["fanchor"]
-        # Calculate the central point offset in the first channel
-        offset = 0
-        direc = 0
-        if fanchor == "top":  # anchor at the higher frequency side
-            direc = 1
-        elif fanchor == "bottom":  # anchor at the lower frequency side
-            direc = -1
-        if foff < 0:
-            offset = direc * foff / 2
-        else:
-            offset = -direc * foff / 2
-        freqs = start + offset + np.arange(nfreq) * foff
+        freqs = start + self.freq_offset + np.arange(nfreq) * foff
         return freqs
 
     @cached_property
@@ -118,13 +131,13 @@ class Burst:
     def channel2freq(self, channel):
         foff = self.header["foff"]
         start = self.header["fch1"]
-        freq = start + channel * foff
+        freq = start + self.freq_offset + channel * foff
         return freq
 
     def freq2channel(self, freq):
         foff = self.header["foff"]
         start = self.header["fch1"]
-        channel = np.round((freq - start) / foff)
+        channel = np.round((freq - start - self.freq_offset) / foff)
         return channel
 
     def sample2time(self, sample):

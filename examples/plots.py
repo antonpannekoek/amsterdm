@@ -8,7 +8,6 @@ import numpy as np
 import amsterdm
 import amsterdm.plot as dmplot
 from amsterdm import core
-from amsterdm.utils import FInterval
 
 
 logger = logging.getLogger("amsterdm")
@@ -34,34 +33,11 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             badchannels = []
 
         # badchannels = np.hstack([np.arange(0, 255, 32), np.arange(1, 255, 32), np.arange(30, 255, 32), np.arange(31, 255, 32)])
-        badchannels = [
-            1,
-            9,
-            15,
-            16,
-            17,
-            76,
-            79,
-            80,
-            81,
-            82,
-            83,
-            98,
-            99,
-            100,
-            103,
-            111,
-            112,
-            113,
-            123,
-            127,
-        ]
+        # badchannels = [1, 9, 15, 16, 17, 76, 79, 80, 81, 82, 83, 98, 99, 100, 103, 111, 112, 113, 123, 127]
         if burst.header["foff"]:
             # Flip the bad channels
             nchan = burst.data.shape[-1]
             badchannels = [nchan - channel for channel in badchannels]
-
-        # burst.downsample(2)
 
         sections = []
         if (
@@ -72,7 +48,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             or "grid" in plots
         ):
             logger.info("Creating light curve")
-            lc = burst.lightcurve(dm, badchannels, backgroundrange=FInterval(0.4, 1))
+            lc = (burst.lightcurve(dm, badchannels, backgroundrange=background),)
             sections, _ = core.findrangelc(lc, kappa=10)
 
         if "all" in plots or "waterfall" in plots or "dynspec" in plots:
@@ -143,7 +119,8 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             outfile = pngfile.with_stem(path.stem + "-s2n")
             ax.figure.savefig(outfile)
 
-        if "all" or "grid" in plots:
+        if "all" in plots or "grid" in plots:
+            section = None
             if sections:
                 nsamples = burst.data.shape[0]
                 # combine sections into one big section

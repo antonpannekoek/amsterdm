@@ -46,3 +46,9 @@ jobs:
       - name: Run unit tests
         run: |
           pytest
+      - name: Run examples
+        run: |
+          python examples/simulate.py
+          python examples/plots.py -h
+          # Run with the just created file
+          python examples/plots.py amsterdm-sim.fits --back 0.4 1 --dm 123.45 --plots all

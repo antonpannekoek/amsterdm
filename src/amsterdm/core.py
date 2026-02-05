@@ -506,7 +506,7 @@ def dedisperse(
     time_shift = dmconst * dm * (reffreq**-2.0 - freqs**-2.0)
     # round to nearest integer
     bin_shift = np.rint((time_shift / tsamp)).astype(np.int64)
-    # checks
+    # check
     assert len(bin_shift) == data.shape[0]
 
     # init empty array to store dedisp data in
