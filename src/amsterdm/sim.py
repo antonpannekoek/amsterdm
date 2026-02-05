@@ -13,14 +13,10 @@ def disperse(
 ):
     # init empty array to store dedisp data in
     newdata = np.empty_like(data)
-
     # calculate time shifts and convert to bin shifts
     time_shift = -dmconst * dm * (reffreq**-2.0 - freqs**-2.0)
-
     # round to nearest integer
     bin_shift = np.rint((time_shift / tsamp)).astype(np.int64)
-
-    print(data.shape, len(bin_shift))
     # checks
     assert len(bin_shift) == data.shape[0]
 
@@ -57,7 +53,6 @@ def simulate(
         raise ValueError(
             "'xy' should be None, an single value, or a 1- or 2-element list or tuple"
         )
-
     channels = np.arange(nchannels)
     freqs = channels * dfreq + freq0
     times = np.arange(nsamples) * tsamp + time0
