@@ -33,34 +33,11 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             badchannels = []
 
         # badchannels = np.hstack([np.arange(0, 255, 32), np.arange(1, 255, 32), np.arange(30, 255, 32), np.arange(31, 255, 32)])
-        badchannels = [
-            1,
-            9,
-            15,
-            16,
-            17,
-            76,
-            79,
-            80,
-            81,
-            82,
-            83,
-            98,
-            99,
-            100,
-            103,
-            111,
-            112,
-            113,
-            123,
-            127,
-        ]
+        # badchannels = [1, 9, 15, 16, 17, 76, 79, 80, 81, 82, 83, 98, 99, 100, 103, 111, 112, 113, 123, 127]
         if burst.header["foff"]:
             # Flip the bad channels
             nchan = burst.data.shape[-1]
             badchannels = [nchan - channel for channel in badchannels]
-
-        # burst.downsample(2)
 
         sections = []
         if (
