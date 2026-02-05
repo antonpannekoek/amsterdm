@@ -1,13 +1,13 @@
 import argparse
 from pathlib import Path
 
-from amsterdm.candidate import openfile
+from amsterdm.burst import openfile
 
 
 def run(filename: str | Path):
-    with openfile(filename) as candidate:
+    with openfile(filename) as burst:
         print(f"{filename}:")
-        for key, value in candidate.header.items():
+        for key, value in burst.header.items():
             print(f" {key:<8s} = {value}")
 
 

@@ -11,8 +11,8 @@ from .io import read_fileformat, read_filterbank, read_fits
 from .utils import FInterval
 
 
-class Candidate:
-    """A candidate FRB object"""
+class Burst:
+    """An FRB object"""
 
     @classmethod
     def fromfile(cls, fobj: BufferedIOBase):
@@ -423,4 +423,4 @@ class Candidate:
 
 
 def openfile(name: Path | str):
-    return Candidate.fromfile(name)
+    return Burst.fromfile(name)

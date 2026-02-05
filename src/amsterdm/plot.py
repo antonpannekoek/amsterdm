@@ -20,13 +20,13 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from .candidate import Candidate
+from .burst import Burst
 from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST
 from .utils import FInterval, symlog
 
 
 def waterfall(
-    candidate: Candidate,
+    burst: Burst,
     dm: float = 0,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
@@ -56,7 +56,7 @@ def waterfall(
     origin = options.get("origin", "upper")
     logscale = options.get("logscale", False)
 
-    stokesI = candidate.create_dynspectrum(
+    stokesI = burst.create_dynspectrum(
         dm, badchannels, backgroundrange, bkg_method=bkg_method
     )
 
@@ -86,12 +86,12 @@ def waterfall(
 
     if x2label:
         # Ensure things are in milliseconds
-        dt = candidate.header["tsamp"] * 1000
+        dt = burst.header["tsamp"] * 1000
         axx2 = ax.secondary_xaxis("top", functions=(lambda x: x * dt, lambda x: x / dt))
         axx2.set_xlabel(x2label)
     if y2label:
         axy2 = ax.secondary_yaxis(
-            "right", functions=(candidate.channel2freq, candidate.freq2channel)
+            "right", functions=(burst.channel2freq, burst.freq2channel)
         )
         axy2.set_ylabel(y2label)
 
@@ -101,7 +101,7 @@ def waterfall(
 
 
 def lightcurve(
-    candidate: Candidate,
+    burst: Burst,
     dm: float = 0,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
@@ -129,10 +129,10 @@ def lightcurve(
     logscale = options.get("logscale", False)
     ymin = options.get("ymin")
 
-    # maxchan = len(candidate.freqs)
+    # maxchan = len(burst.freqs)
     # badchannels = [maxchan - value for value in badchannels]
 
-    lightcurve = candidate.lightcurve(
+    lightcurve = burst.lightcurve(
         dm, badchannels, backgroundrange, bkg_method=bkg_method
     )
 
@@ -152,7 +152,7 @@ def lightcurve(
 
 
 def background(
-    candidate: Candidate,
+    burst: Burst,
     dm: float = 0,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
@@ -169,7 +169,7 @@ def background(
         The second ax item is used for the std-dev background
     """
 
-    _, bkg = candidate.create_dynspectrum(
+    _, bkg = burst.create_dynspectrum(
         dm, badchannels, backgroundrange, bkg_method=bkg_method, bkg_extra=True
     )
 
@@ -190,7 +190,7 @@ def background(
         mean = symlog(mean)
         stddev = symlog(stddev)
 
-    channels = np.arange(1, candidate.header["nchans"] + 1)
+    channels = np.arange(1, burst.header["nchans"] + 1)
     ax.plot(channels, mean, label=label_mean)
     ax.plot(channels, stddev, label=label_std)
     ax.legend()
@@ -202,7 +202,7 @@ def background(
 
 
 def bowtie(
-    candidate: Candidate,
+    burst: Burst,
     dm: FInterval,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
@@ -217,7 +217,7 @@ def bowtie(
 
     Parameters
     ----------
-    candidate : Candidate
+    burst : Burst
 
     dm : tuple[float, float] (FInterval)
         range of the dispersion measure: start and end
@@ -254,10 +254,10 @@ def bowtie(
         If given, use this axes to draw the graph on
     """
 
-    # maxchan = len(candidate.freqs)
+    # maxchan = len(burst.freqs)
     # badchannels = [maxchan - value for value in badchannels]
 
-    data = candidate.bowtie(
+    data = burst.bowtie(
         dm,
         badchannels,
         backgroundrange,
@@ -317,7 +317,7 @@ def bowtie(
 
 
 def signal2noise(
-    candidate: Candidate,
+    burst: Burst,
     dms: np.ndarray,
     reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
@@ -328,7 +328,7 @@ def signal2noise(
     ax=None,
     **options,
 ):
-    ratios = candidate.signal2noise(
+    ratios = burst.signal2noise(
         dms=dms,
         reffreq=reffreq,
         badchannels=badchannels,
@@ -358,7 +358,7 @@ def signal2noise(
 
 
 def grid(
-    candidate: Candidate,
+    burst: Burst,
     dm: float,
     dms: np.ndarray,
     reffreq: float | None = None,
@@ -399,7 +399,7 @@ def grid(
     c_ax = figure.add_subplot(gs[1, 0])
     s2n_ax = figure.add_subplot(gs[1, 2])
     _, image = waterfall(
-        candidate,
+        burst,
         dm=dm,
         badchannels=badchannels,
         backgroundrange=backgroundrange,
@@ -412,7 +412,7 @@ def grid(
     c_ax.yaxis.set_ticks_position("left")
 
     lightcurve(
-        candidate,
+        burst,
         dm=dm,
         badchannels=badchannels,
         backgroundrange=backgroundrange,
@@ -422,7 +422,7 @@ def grid(
     lc_ax.set_title("Light curve")
 
     signal2noise(
-        candidate,
+        burst,
         dms,
         reffreq=reffreq,
         badchannels=badchannels,
@@ -441,14 +441,11 @@ def grid(
 
     # Add overall info in top-right corner
     incoherent_dm = coherent_dm - dm
-    smearing = abs(
-        2 * DMCONST * incoherent_dm * candidate.header["foff"] * candidate.cfreq**-3
-    )
-    obsdate = candidate.header.get("tstart")
+    smearing = abs(2 * DMCONST * incoherent_dm * burst.header["foff"] * burst.cfreq**-3)
+    obsdate = burst.header.get("tstart")
     obsdate = (
         Time(obsdate, format="mjd").strftime("%Y-%m-%dT%H:%M:%S.%f") if obsdate else "-"
     )
-    # smearing = 2 * DMCONST * incoherent_dm * candidate.channel_bandwidth_mhz * central_frequency_mhz ** -3
     info_ax.axis("off")
     transform = info_ax.transAxes
     info_ax.text(

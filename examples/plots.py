@@ -27,7 +27,7 @@ def setup_logger(loglevel):
 def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
     setup_logger(loglevel)
     logger.info("Reading file %s", path)
-    with amsterdm.openfile(path) as candidate:
+    with amsterdm.openfile(path) as burst:
         logger.info("Done reading file")
         pngfile = path.with_suffix(".png")
         if badchannels is None:
@@ -56,12 +56,12 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             123,
             127,
         ]
-        if candidate.header["foff"]:
+        if burst.header["foff"]:
             # Flip the bad channels
-            nchan = candidate.data.shape[-1]
+            nchan = burst.data.shape[-1]
             badchannels = [nchan - channel for channel in badchannels]
 
-        # candidate.downsample(2)
+        # burst.downsample(2)
 
         sections = []
         if (
@@ -72,22 +72,18 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             or "grid" in plots
         ):
             logger.info("Creating light curve")
-            lc = candidate.lightcurve(
-                dm, badchannels, backgroundrange=FInterval(0.4, 1)
-            )
+            lc = burst.lightcurve(dm, badchannels, backgroundrange=FInterval(0.4, 1))
             sections, _ = core.findrangelc(lc, kappa=10)
 
         if "all" in plots or "waterfall" in plots or "dynspec" in plots:
-            ax = dmplot.waterfall(
-                candidate, dm, badchannels, backgroundrange=background
-            )
+            ax = dmplot.waterfall(burst, dm, badchannels, backgroundrange=background)
             ax.set_title(f"Waterfall plot of {path.stem}")
             outfile = pngfile.with_stem(path.stem + "-waterfall")
             ax.figure.savefig(outfile)
 
         if "all" in plots or "bowtie" in plots:
             ax = dmplot.bowtie(
-                candidate,
+                burst,
                 (dm - 50, dm + 50),
                 badchannels,
                 backgroundrange=background,
@@ -99,9 +95,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
 
         if "all" in plots or "lightcurve" in plots or "lc" in plots:
             logger.info("Creating light curve plot")
-            ax = dmplot.lightcurve(
-                candidate, dm, badchannels, backgroundrange=background
-            )
+            ax = dmplot.lightcurve(burst, dm, badchannels, backgroundrange=background)
             if sections:
                 vlines = [item for interval in sections for item in interval]
                 ax.vlines(
@@ -117,9 +111,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             ax.figure.savefig(outfile)
 
         if "all" in plots or "background" in plots or "bg" in plots:
-            ax = dmplot.background(
-                candidate, dm, badchannels, backgroundrange=background
-            )
+            ax = dmplot.background(burst, dm, badchannels, backgroundrange=background)
             ax.set_title(f"Background statistics of {path.stem}")
             outfile = pngfile.with_stem(path.stem + "-background")
             ax.figure.savefig(outfile)
@@ -127,7 +119,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
         if "all" in plots or "ratio" in plots or "s2n" in plots:
             section = None
             if sections:
-                nsamples = candidate.data.shape[0]
+                nsamples = burst.data.shape[0]
                 # combine sections into one big section
                 section = [sections[0][0], sections[-1][1]]
                 # Extend it on both sides to cover dispersion ("rolling the axis")
@@ -137,7 +129,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             dms = np.linspace(dm - 0.15, dm + 0.15, 50)
             peak = True
             ax = dmplot.signal2noise(
-                candidate,
+                burst,
                 dms,
                 badchannels=badchannels,
                 backgroundrange=background,
@@ -153,7 +145,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
 
         if "all" or "grid" in plots:
             if sections:
-                nsamples = candidate.data.shape[0]
+                nsamples = burst.data.shape[0]
                 # combine sections into one big section
                 section = [sections[0][0], sections[-1][1]]
                 # Extend it on both sides to cover dispersion ("rolling the axis")
@@ -163,7 +155,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             dms = np.linspace(dm - 0.1, dm + 0.1, 50)
             peak = True
             ax = dmplot.grid(
-                candidate,
+                burst,
                 dm=dm,
                 dms=dms,
                 badchannels=badchannels,
