@@ -53,14 +53,11 @@ class Burst:
     def __exit__(self, type, value, traceback):
         self.close()
 
-    @property
-    def cfreq(self):
-        """Central frequency"""
-        midchan = self.header["nchans"] / 2
+    @cached_property
+    def freq_offset(self):
+        """Get the central point offset in the first channel"""
+        fanchor = self.header["fanchor"]  # one of mid, top or bottom
         foff = self.header["foff"]
-        start = self.header["fch1"]
-        fanchor = self.header["fanchor"]
-        # Calculate the central point offset in the first channel
         offset = 0
         direc = 0
         if fanchor == "top":  # anchor at the higher frequency side
@@ -71,7 +68,15 @@ class Burst:
             offset = direc * foff / 2
         else:
             offset = -direc * foff / 2
-        cfreq = start + offset + midchan * foff
+        return offset
+
+    @property
+    def cfreq(self):
+        """Central frequency"""
+        midchan = self.header["nchans"] / 2
+        foff = self.header["foff"]
+        start = self.header["fch1"]
+        cfreq = start + self.freq_offset + midchan * foff
         return cfreq
 
     @cached_property
@@ -79,19 +84,7 @@ class Burst:
         nfreq = self.header["nchans"]
         foff = self.header["foff"]
         start = self.header["fch1"]
-        fanchor = self.header["fanchor"]
-        # Calculate the central point offset in the first channel
-        offset = 0
-        direc = 0
-        if fanchor == "top":  # anchor at the higher frequency side
-            direc = 1
-        elif fanchor == "bottom":  # anchor at the lower frequency side
-            direc = -1
-        if foff < 0:
-            offset = direc * foff / 2
-        else:
-            offset = -direc * foff / 2
-        freqs = start + offset + np.arange(nfreq) * foff
+        freqs = start + self.freq_offset + np.arange(nfreq) * foff
         return freqs
 
     @cached_property
@@ -118,13 +111,13 @@ class Burst:
     def channel2freq(self, channel):
         foff = self.header["foff"]
         start = self.header["fch1"]
-        freq = start + channel * foff
+        freq = start + self.freq_offset + channel * foff
         return freq
 
     def freq2channel(self, freq):
         foff = self.header["foff"]
         start = self.header["fch1"]
-        channel = np.round((freq - start) / foff)
+        channel = np.round((freq - start - self.freq_offset) / foff)
         return channel
 
     def sample2time(self, sample):
