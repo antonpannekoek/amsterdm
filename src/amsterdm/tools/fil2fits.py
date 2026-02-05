@@ -3,7 +3,7 @@ from pathlib import Path
 
 import astropy.io.fits as pyfits
 
-from amsterdm.candidate import openfile
+from amsterdm.burst import openfile
 
 
 def run(
@@ -13,8 +13,8 @@ def run(
     remove_keys: bool = False,
     overwrite: bool = False,
 ):
-    with openfile(infile) as candidate:
-        header = candidate.header
+    with openfile(infile) as burst:
+        header = burst.header
 
         if duplicate_keys:
             if "source_name" in header:
@@ -28,7 +28,7 @@ def run(
             header["dec"] = header["src_dec"]
 
         if remove_keys:
-            if "nchans" in header and header["nchans"] == candidate.data.shape[2]:
+            if "nchans" in header and header["nchans"] == burst.data.shape[2]:
                 del header["nchans"]
             header.pop("src_raj", None)
             header.pop("src_dej", None)
@@ -37,7 +37,7 @@ def run(
             header["fanchor"] = "mid"  # Assume the simplest default
         header = pyfits.Header(header)
 
-        hdu = pyfits.PrimaryHDU(header=header, data=candidate.data)
+        hdu = pyfits.PrimaryHDU(header=header, data=burst.data)
         hdu.writeto(outfile, overwrite=overwrite)
 
 

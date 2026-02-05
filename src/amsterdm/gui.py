@@ -9,7 +9,7 @@ import panel as pn
 import param
 import xarray as xr
 
-from .candidate import openfile
+from .burst import openfile
 from .utils import symlog10
 
 
@@ -36,7 +36,7 @@ DM_ZOOM_LEVELS = {
 }
 
 
-class CandidatePlot(param.Parameterized):
+class BurstPlot(param.Parameterized):
     dm = param.Number(default=0.0, bounds=(0.0, 2000.0), step=0.1, label="DM")
     dm_zoom = param.Selector(
         objects=DM_ZOOM_LEVELS.keys(), label="DM slider zoom factor"
@@ -57,16 +57,16 @@ class CandidatePlot(param.Parameterized):
     bkg_right = param.Integer(default=0, label="Right limit")
     bkg_reset = param.Action(label="Reset range")
 
-    def __init__(self, candidate, invert=True, width=800, **kwargs):
+    def __init__(self, burst, invert=True, width=800, **kwargs):
         super().__init__(**kwargs)
-        self.candidate = candidate
+        self.burst = burst
         self.tap = streams.Tap(x=1, y=1)
         self.tap.param.watch(self._on_tap, ["y"])
         self.invert = invert
         self.width = width
         self.range_stream = hv.streams.RangeX()
 
-        self.ntotal = self.candidate.data.shape[0]
+        self.ntotal = self.burst.data.shape[0]
 
         # Set the background left and right cutoffs based on the actual data
         self.bkg_left = self.ntotal // 3
@@ -144,9 +144,9 @@ class CandidatePlot(param.Parameterized):
         self._calc_data()
 
     def add_physical_axes(self, plot, element):
-        times = self.candidate.times - self.candidate.times[0]
+        times = self.burst.times - self.burst.times[0]
         times *= SOD
-        freqs = self.candidate.freqs
+        freqs = self.burst.freqs
         figure = plot.state
         if "time" not in figure.extra_x_ranges:
             rangex = Range1d(
@@ -195,10 +195,10 @@ class CandidatePlot(param.Parameterized):
 
     def _init_data(self):
         self.badchannels = set()
-        self.channels = list(range(1, len(self.candidate.freqs) + 1))
+        self.channels = list(range(1, len(self.burst.freqs) + 1))
         if self.invert:
             self.channels = self.channels[::-1]
-        self.dt = (self.candidate.times - self.candidate.times[0]) * 1000
+        self.dt = (self.burst.times - self.burst.times[0]) * 1000
 
         self._calc_data()
 
@@ -207,7 +207,7 @@ class CandidatePlot(param.Parameterized):
             [0, self.bkg_left / self.ntotal],
             [self.bkg_right / self.ntotal, 1],
         ]
-        self.stokesI, self.bkg = self.candidate.create_dynspectrum(
+        self.stokesI, self.bkg = self.burst.create_dynspectrum(
             self.dm,
             [128 - value for value in self.badchannels],
             backgroundrange=backgroundrange,
@@ -408,7 +408,7 @@ class CandidatePlot(param.Parameterized):
         layout = pn.Row(
             pn.Column(
                 pn.pane.HTML(
-                    f'<h1 style="margin: 0; padding: 0; text-align: center">{self.candidate.filename}</h1>'
+                    f'<h1 style="margin: 0; padding: 0; text-align: center">{self.burst.filename}</h1>'
                 ),
                 plots,
             ),
@@ -424,13 +424,13 @@ class CandidatePlot(param.Parameterized):
 
 
 def main(filename):
-    with openfile(filename) as candidate:
-        plot = CandidatePlot(candidate, invert=True, width=1200)
+    with openfile(filename) as burst:
+        plot = BurstPlot(burst, invert=True, width=1200)
         layout = plot.panel()
 
         pn.serve(
             layout,
-            title="FRB Candidate - interactive DM",
+            title="FRB - interactive DM",
             port=5006,
             show=False,
             autoreload=True,  # This is equivalent to --dev
