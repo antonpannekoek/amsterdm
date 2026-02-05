@@ -8,7 +8,6 @@ import numpy as np
 import amsterdm
 import amsterdm.plot as dmplot
 from amsterdm import core
-from amsterdm.utils import FInterval
 
 
 logger = logging.getLogger("amsterdm")
@@ -72,7 +71,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             or "grid" in plots
         ):
             logger.info("Creating light curve")
-            lc = burst.lightcurve(dm, badchannels, backgroundrange=FInterval(0.4, 1))
+            lc = (burst.lightcurve(dm, badchannels, backgroundrange=background),)
             sections, _ = core.findrangelc(lc, kappa=10)
 
         if "all" in plots or "waterfall" in plots or "dynspec" in plots:
