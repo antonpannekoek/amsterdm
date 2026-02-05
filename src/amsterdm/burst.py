@@ -1,5 +1,6 @@
 from contextlib import suppress
 from functools import cached_property
+import logging
 from io import BufferedIOBase
 from pathlib import Path, PurePath
 
@@ -9,6 +10,9 @@ from . import core
 from .constants import DEFAULT_BACKGROUND_RANGE, SOD
 from .io import read_fileformat, read_filterbank, read_fits
 from .utils import FInterval
+
+
+logger = logging.getLogger(__package__)
 
 
 class Burst:
@@ -46,12 +50,28 @@ class Burst:
         if "fanchor" not in self.header:
             self.header["fanchor"] = "mid"
 
+        self._fix_missing()
+
     # Make the class a context manager to support the 'with' statement
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
         self.close()
+
+    def _fix_missing(self):
+        """Try and fix any missing keywords"""
+        if "nchans" not in self.header:
+            logger.warning("'nchans' not found in header; determining from the data")
+            self.header["nchans"] = self.data.shape[-1]
+        if "fch1" not in self.header:
+            if "fchan1" in self.header:
+                self.header["fch1"] = self.header["fchan1"]
+            else:
+                logger.critical(
+                    "'fch1' keyword not found in header; data can't be used"
+                )
+                raise ValueError("'fhc1' keyword not found in header information")
 
     @cached_property
     def freq_offset(self):
