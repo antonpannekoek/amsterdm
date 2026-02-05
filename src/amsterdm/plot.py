@@ -71,16 +71,6 @@ def waterfall(
         stokesI.T, aspect="auto", origin=origin, cmap=cmap, vmin=vmin, vmax=vmax
     )
 
-    divider = make_axes_locatable(ax)
-    with suppress(AttributeError):
-        cbar = cbar.lower()
-    if cbar is True or cbar == "right":
-        cax = divider.append_axes("right", size="5%", pad=0.15)
-    elif cbar == "left":
-        cax = divider.append_axes("left", size="5%", pad=0.15)
-    if cbar:
-        ax.figure.colorbar(image, cax=cax, orientation="vertical")
-
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
@@ -94,6 +84,18 @@ def waterfall(
             "right", functions=(burst.channel2freq, burst.freq2channel)
         )
         axy2.set_ylabel(y2label)
+
+    divider = make_axes_locatable(ax)
+    with suppress(AttributeError):
+        cbar = cbar.lower()
+    if cbar is True or cbar == "right":
+        cax = divider.append_axes("right", size="5%", pad=1)
+    elif cbar == "left":
+        cax = divider.append_axes("left", size="5%", pad=1)
+    if cbar:
+        cb = ax.figure.colorbar(image, cax=cax, orientation="vertical")
+        if cbar == "left":
+            cb.ax.yaxis.set_ticks_position("left")
 
     if return_image:
         return ax, image
