@@ -119,7 +119,8 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             outfile = pngfile.with_stem(path.stem + "-s2n")
             ax.figure.savefig(outfile)
 
-        if "all" or "grid" in plots:
+        if "all" in plots or "grid" in plots:
+            section = None
             if sections:
                 nsamples = burst.data.shape[0]
                 # combine sections into one big section
