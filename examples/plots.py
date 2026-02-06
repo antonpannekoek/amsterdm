@@ -52,13 +52,15 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             sections = core.findrangelc(lc, kappa=10)
 
         if "all" in plots or "waterfall" in plots or "dynspec" in plots:
-            ax = dmplot.waterfall(burst, dm, badchannels, backgroundrange=background)
+            fig, ax = dmplot.waterfall(
+                burst, dm, badchannels, backgroundrange=background
+            )
             ax.set_title(f"Waterfall plot of {path.stem}")
             outfile = pngfile.with_stem(path.stem + "-waterfall")
-            ax.figure.savefig(outfile)
+            fig.savefig(outfile)
 
         if "all" in plots or "bowtie" in plots:
-            ax = dmplot.bowtie(
+            fig, ax = dmplot.bowtie(
                 burst,
                 (dm - 50, dm + 50),
                 badchannels,
@@ -67,11 +69,13 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             )
             ax.set_title(f"Bowtie plot of {path.stem}")
             outfile = pngfile.with_stem(path.stem + "-bowtie")
-            ax.figure.savefig(outfile)
+            fig.savefig(outfile)
 
         if "all" in plots or "lightcurve" in plots or "lc" in plots:
             logger.info("Creating light curve plot")
-            ax = dmplot.lightcurve(burst, dm, badchannels, backgroundrange=background)
+            fig, ax = dmplot.lightcurve(
+                burst, dm, badchannels, backgroundrange=background
+            )
             if sections:
                 vlines = [item for interval in sections for item in interval]
                 ax.vlines(
@@ -84,13 +88,15 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
                 )
             ax.set_title(f"Light curve of {path.stem}")
             outfile = pngfile.with_stem(path.stem + "-lightcurve")
-            ax.figure.savefig(outfile)
+            fig.savefig(outfile)
 
         if "all" in plots or "background" in plots or "bg" in plots:
-            ax = dmplot.background(burst, dm, badchannels, backgroundrange=background)
+            fig, ax = dmplot.background(
+                burst, dm, badchannels, backgroundrange=background
+            )
             ax.set_title(f"Background statistics of {path.stem}")
             outfile = pngfile.with_stem(path.stem + "-background")
-            ax.figure.savefig(outfile)
+            fig.savefig(outfile)
 
         if "all" in plots or "ratio" in plots or "s2n" in plots:
             section = None
@@ -104,7 +110,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
                 section = (section[0] / nsamples, section[1] / nsamples)
             dms = np.linspace(dm - 0.15, dm + 0.15, 50)
             peak = True
-            ax = dmplot.signal2noise(
+            fig, ax = dmplot.signal2noise(
                 burst,
                 dms,
                 badchannels=badchannels,
@@ -117,7 +123,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             else:
                 ax.set_title(f"Signal to noise for {path.stem}")
             outfile = pngfile.with_stem(path.stem + "-s2n")
-            ax.figure.savefig(outfile)
+            fig.savefig(outfile)
 
         if "all" in plots or "grid" in plots:
             section = None
@@ -131,7 +137,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
                 section = (section[0] / nsamples, section[1] / nsamples)
             dms = np.linspace(dm - 0.1, dm + 0.1, 50)
             peak = True
-            ax = dmplot.grid(
+            fig, ax = dmplot.grid(
                 burst,
                 dm=dm,
                 dms=dms,
@@ -143,7 +149,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             )
 
             outfile = pngfile.with_stem(path.stem + "-grid")
-            ax.figure.savefig(outfile)
+            fig.savefig(outfile)
 
 
 def parse_args():
