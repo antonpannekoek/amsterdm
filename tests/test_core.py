@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.testing import assert_allclose
 import pytest
+from pytest import approx
 
 from amsterdm import core
 
@@ -181,8 +182,8 @@ def test_bandpass():
     np.testing.assert_allclose(bkgmean.mean() / 5, average, rtol=1e-2)
     # After correction, the corrected data has no background and is
     # normally distributed around 0 with sigma = 1
-    assert abs(corrdata.mean()) < 1e-3
-    assert abs(corrdata.std() - 1) < 1e-3
+    assert corrdata.mean() == approx(0, abs=1e-3)
+    assert corrdata.std() == approx(1, abs=1e-3)
 
     # Add a single peak value
     data[100, ...] += 10 * bandpass
@@ -191,12 +192,12 @@ def test_bandpass():
     )
 
     # Note: normalization by noise (factor 2) results in the signal being 5
-    assert abs(corrdata[100, ...].mean() - 5) < 0.2
+    assert corrdata[100, ...].mean() == approx(5, abs=0.2)
     # The median is often better, though not much here
-    assert abs(np.ma.median(corrdata[100, ...]) - 5) < 0.1
+    assert corrdata[100, ...].mean() == approx(5, abs=0.1)
     # Verify that surrounding channels are still near 0
-    assert abs(corrdata[99, ...].mean()) < 0.1
-    assert abs(corrdata[101, ...].mean()) < 0.1
+    assert corrdata[99, ...].mean() == approx(0, abs=0.1)
+    assert corrdata[101, ...].mean() == approx(0, abs=0.1)
 
 
 def test_findpeaklc():
@@ -283,14 +284,14 @@ def test_background_calculation():
     data = rng.normal(loc=5, scale=2, size=(nsamples, nchannels))
 
     mean, std = core.calc_background(data)
-    assert abs(mean.mean() - 5) < 1e-2
-    assert abs(std.mean() - 2) < 1e-2
+    assert mean.mean() == approx(5, abs=1e-2)
+    assert std.mean() == approx(2, abs=1e-2)
 
     # Note: the default background range is [[0, 0.333], [0.667, 1]]
     backgroundrange = [[0, 0.2], [0.8, 1]]
     mean, std = core.calc_background(data, backgroundrange=backgroundrange)
-    assert abs(mean.mean() - 5) < 1e-2
-    assert abs(std.mean() - 2) < 1e-2
+    assert mean.mean() == approx(5, abs=1e-2)
+    assert std.mean() == approx(2, abs=1e-2)
 
     # Ignore data in the non-background interval
     data[400:600, :] = 10
@@ -298,13 +299,13 @@ def test_background_calculation():
 
     # Contrast with background calculated over the full range
     mean, std = core.calc_background(data, backgroundrange=[0, 1])
-    assert abs(mean.mean() - 5.6275) < 1e-5
-    assert abs(std.mean() - 2.67565) < 1e-5
+    assert mean.mean() == approx(5.6275, abs=1e-5)
+    assert std.mean() == approx(2.67565, abs=1e-5)
     mean, std = core.calc_background(data, backgroundrange=[0, 1], method="mean")
-    assert abs(mean.mean() - 5.976) < 1e-5
+    assert mean.mean() == approx(5.976, abs=1e-5)
     # Note how the standard deviation uses the mean, also for the
     # default "median" method
-    assert abs(std.mean() - 2.67565) < 1e-5
+    assert std.mean() == approx(2.67565, abs=1e-5)
 
     with pytest.raises(
         ValueError, match="method should be one of 'mean', 'median' or 'mode'"
