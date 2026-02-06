@@ -197,3 +197,81 @@ def test_bandpass():
     # Verify that surrounding channels are still near 0
     assert abs(corrdata[99, ...].mean()) < 0.1
     assert abs(corrdata[101, ...].mean()) < 0.1
+
+
+def test_findpeaklc():
+    """Test the peak finding for light curve (one-dimensional) data
+
+    This is simply `np.argmax` behind the scenes
+
+    """
+
+    data = np.ones(100, dtype=float)
+    # Test peak at the edges
+    data[0] = 5
+    index = core.findpeaklc(data)
+    assert index == 0
+    data[0] = 1
+    data[-1] = 5
+    index = core.findpeaklc(data)
+    assert index == 99
+    # With two identical peaks (very unlikely in practice)
+    # only return the first peak index
+    data[20] = 5
+    index = core.findpeaklc(data)
+    assert index == 20
+    data[0] = data[-1] = 1
+    data[20] = 5
+    data[90] = 3
+    index = core.findpeaklc(data)
+    assert index == 20
+    index = core.findpeaklc(data, searchrange=(0, 0.5))
+    assert index == 20
+    # Select only the last 20%; finds the second peak
+    index = core.findpeaklc(data, searchrange=[0.8, 1])
+    assert index == 90
+    # Finds no peak; returns first index in the search range
+    # since the background is the same everywhere
+    index = core.findpeaklc(data, searchrange=[0.5, 0.8])
+    assert index == 50
+
+
+def test_findrangelc():
+    """ """
+
+    data = np.ones(100, dtype=float)
+
+    data[18:23] = 5
+
+    sections = core.findrangelc(data)
+    assert sections == [(14, 25)]
+    # Search range shouldn't matter if it completely overlaps
+    sections = core.findrangelc(data, searchrange=[0.0, 0.5])
+    assert sections == [(14, 25)]
+    sections = core.findrangelc(data, searchrange=[0.1, 0.2])
+    assert sections == [(14, 20)]
+    sections = core.findrangelc(data, searchrange=[0.5, 1])
+    assert sections == []
+
+    # Test multiple, non-overlapping ranges
+    data[68:73] = 8
+
+    sections = core.findrangelc(data)
+    assert sections == [(14, 25), (64, 75)]
+    # Search range shouldn't matter if it completely overlaps
+    sections = core.findrangelc(data, searchrange=[0.0, 0.5])
+    assert sections == [(14, 25)]
+    sections = core.findrangelc(data, searchrange=[0.1, 0.2])
+    assert sections == [(14, 20)]
+    sections = core.findrangelc(data, searchrange=[0.5, 1])
+    assert sections == [(64, 75)]
+    sections = core.findrangelc(data, searchrange=[0.7, 1])
+    assert sections == [(70, 75)]
+
+    # Test multiple overlapping ranges
+    # The overlap happens because the actual data
+    # is extended slightly
+    data[26:30] = 6
+    data[77:80] = 4
+    sections = core.findrangelc(data)
+    assert sections == [(14, 32), (64, 82)]
