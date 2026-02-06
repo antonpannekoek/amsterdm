@@ -144,6 +144,7 @@ def findrangelc(
     maxiter: int = 10,
     minvalues: int = 10,
     searchrange: tuple[float, float] = (0, 1),
+    bkg_extra: bool = False,
 ):
     """Find the range of the active light curve.
 
@@ -194,13 +195,9 @@ def findrangelc(
        A tuple of 2 items:
        - A list of 2-tuples of integers. These represent the start and end indices
          of sections where the light curve is active.
-       - a tuple of the estimated background value and standard deviation
+       - Optionally, a tuple of the estimated background value and standard deviation
 
     """
-
-    n = len(data)
-    low, high = int(searchrange[0] * n + 0.5), int(searchrange[1] * n + 0.5)
-    data = data[low:high]
 
     # Smooth the data with a window
     sdata = np.convolve(data, np.ones(window), mode="same") / window
@@ -214,18 +211,26 @@ def findrangelc(
     bkgval = np.ma.median(data[selection])
     bkgstd = data[selection].std()
 
+    # With the background determined from the full data, limit the
+    # search area
+    n = len(data)
+    low, high = int(searchrange[0] * n + 0.5), int(searchrange[1] * n + 0.5)
+    sdata = sdata[low:high]
+    data = data[low:high]
+
     above = sdata > bkgval + kappa * bkgstd
 
     indices = np.where(np.diff(above))[0]
+
     if above[0]:  # first section starts above the background
         indices = np.hstack([[0], indices])
     # Append a closing index if there is an open section at the end
     if len(indices) % 2 == 1:
         indices = np.append(indices, [n - 1])
 
-    indices += low  # Adjust for the original data range
     # Indices containing everything below the kappa-sigma background
     bkgindices = np.where(sdata <= (bkgval + minkappa * bkgstd))[0]
+
     # Create the sections pairs
     sections = []
     for index1, index2 in zip(indices[::2], indices[1::2]):
@@ -252,84 +257,11 @@ def findrangelc(
             remove.append(i)
     for i in reversed(remove):
         sections.pop(i)
-    sections = [(section[0] + low, section[1] + low) for section in sections]
+    sections = [(section[0] + low, min(section[1] + low, high)) for section in sections]
 
-    return sections, (bkgval, bkgstd)
-
-
-def calc_background_old(
-    data: np.ndarray | np.ma.MaskedArray,
-    datarange: tuple[float, float] = (0.3, 0.7),
-    method: str = "median",
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Return background and its standard deviation for each channel
-
-    Assumes any dispersion correction has already been done
-
-    For each channel, a background level is estimated. This is done by
-    selecting a set of time-sample columns outside of the columns that contain
-    actual object of interest (the latter is given with ``datarange`` as a
-    range in fraction of the total time-sample columns), then calculating an
-    average, using one of three ``method``s (mean, median or mode), and the
-    background standard deviation (noise). The average is subtracted from the
-    full channel values, then the channel is divided (normalized) by the
-    standard deviation.
-
-    Parameters
-    ----------
-    data : np.ndarray | np.ma.MaskedArray
-        data that needs be normalised. Usually contains frequency on the y-axis
-        and time samples on the x-axis.
-
-    datarange : tuple[float, float], default=(0.3, 0.7)
-
-        Fractional range along the time axis, where the actual object is
-        located. Data outside these columns is used as the background for the
-        estimation of mean/median/mode and standard deviation for the bandpass
-        correction.
-
-    method : str, default="median"
-        method to estimate the background level for each channel.
-
-        Note that "mode" is not very applicable for continuously distributed
-        data; and for normally distributed data, it will be the same value as
-        the median or mean.
-    """
-
-    if method not in ["mean", "median", "mode"]:
-        raise ValueError("method should be one of 'mean', 'median' or 'mode'")
-
-    nsamp = data.shape[0]
-    bkgrange = (int(nsamp * datarange[0]), int(nsamp * datarange[1]))
-
-    idx = np.arange(nsamp)
-    idx_bg = [np.array([], dtype=int)]
-    if bkgrange[0] > 0:
-        idx_bg.append(idx[: bkgrange[0]])
-    if bkgrange[1] < nsamp:
-        idx_bg.append(idx[bkgrange[1] :])
-
-    idx_bg = np.concatenate(idx_bg)
-    # bkg = np.ma.filled(data[idx_bg, :], np.nan)
-    bkg = data[idx_bg, :]
-
-    if method == "mean":
-        mean = np.ma.mean(bkg, axis=0)
-    elif method == "median":
-        mean = np.ma.median(bkg, axis=0)
-    elif method == "mode":
-        mean = np.empty(data.shape[1])
-        for i in range(data.shape[1]):
-            hist, bin_edges = np.histogram(bkg[:, i], bins=100)
-            max_bin = np.argmax(hist)
-            mean[i] = 0.5 * (bin_edges[max_bin] + bin_edges[max_bin + 1])
-    else:  # we shouldn't be able to get here
-        raise ValueError("method should be one of 'mean', 'median' or 'mode'")
-
-    std = np.ma.std(bkg, axis=0)
-
-    return mean, std
+    if bkg_extra:
+        return sections, (bkgval, bkgstd)
+    return sections
 
 
 def calc_background(
