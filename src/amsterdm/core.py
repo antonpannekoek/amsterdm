@@ -144,6 +144,7 @@ def findrangelc(
     maxiter: int = 10,
     minvalues: int = 10,
     searchrange: tuple[float, float] = (0, 1),
+    bkg_extra: bool = False,
 ):
     """Find the range of the active light curve.
 
@@ -194,13 +195,9 @@ def findrangelc(
        A tuple of 2 items:
        - A list of 2-tuples of integers. These represent the start and end indices
          of sections where the light curve is active.
-       - a tuple of the estimated background value and standard deviation
+       - Optionally, a tuple of the estimated background value and standard deviation
 
     """
-
-    n = len(data)
-    low, high = int(searchrange[0] * n + 0.5), int(searchrange[1] * n + 0.5)
-    data = data[low:high]
 
     # Smooth the data with a window
     sdata = np.convolve(data, np.ones(window), mode="same") / window
@@ -214,18 +211,26 @@ def findrangelc(
     bkgval = np.ma.median(data[selection])
     bkgstd = data[selection].std()
 
+    # With the background determined from the full data, limit the
+    # search area
+    n = len(data)
+    low, high = int(searchrange[0] * n + 0.5), int(searchrange[1] * n + 0.5)
+    sdata = sdata[low:high]
+    data = data[low:high]
+
     above = sdata > bkgval + kappa * bkgstd
 
     indices = np.where(np.diff(above))[0]
+
     if above[0]:  # first section starts above the background
         indices = np.hstack([[0], indices])
     # Append a closing index if there is an open section at the end
     if len(indices) % 2 == 1:
         indices = np.append(indices, [n - 1])
 
-    indices += low  # Adjust for the original data range
     # Indices containing everything below the kappa-sigma background
     bkgindices = np.where(sdata <= (bkgval + minkappa * bkgstd))[0]
+
     # Create the sections pairs
     sections = []
     for index1, index2 in zip(indices[::2], indices[1::2]):
@@ -252,9 +257,11 @@ def findrangelc(
             remove.append(i)
     for i in reversed(remove):
         sections.pop(i)
-    sections = [(section[0] + low, section[1] + low) for section in sections]
+    sections = [(section[0] + low, min(section[1] + low, high)) for section in sections]
 
-    return sections, (bkgval, bkgstd)
+    if bkg_extra:
+        return sections, (bkgval, bkgstd)
+    return sections
 
 
 def calc_background_old(

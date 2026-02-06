@@ -49,7 +49,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
         ):
             logger.info("Creating light curve")
             lc = (burst.lightcurve(dm, badchannels, backgroundrange=background),)
-            sections, _ = core.findrangelc(lc, kappa=10)
+            sections = core.findrangelc(lc, kappa=10)
 
         if "all" in plots or "waterfall" in plots or "dynspec" in plots:
             ax = dmplot.waterfall(burst, dm, badchannels, backgroundrange=background)
