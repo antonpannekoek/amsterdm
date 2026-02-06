@@ -275,3 +275,38 @@ def test_findrangelc():
     data[77:80] = 4
     sections = core.findrangelc(data)
     assert sections == [(14, 32), (64, 82)]
+
+
+def test_background_calculation():
+    nsamples, nchannels = 1024, 128
+    rng = np.random.default_rng(seed=0)
+    data = rng.normal(loc=5, scale=2, size=(nsamples, nchannels))
+
+    mean, std = core.calc_background(data)
+    assert abs(mean.mean() - 5) < 1e-2
+    assert abs(std.mean() - 2) < 1e-2
+
+    # Note: the default background range is [[0, 0.333], [0.667, 1]]
+    backgroundrange = [[0, 0.2], [0.8, 1]]
+    mean, std = core.calc_background(data, backgroundrange=backgroundrange)
+    assert abs(mean.mean() - 5) < 1e-2
+    assert abs(std.mean() - 2) < 1e-2
+
+    # Ignore data in the non-background interval
+    data[400:600, :] = 10
+    mean, std = core.calc_background(data, backgroundrange=backgroundrange)
+
+    # Contrast with background calculated over the full range
+    mean, std = core.calc_background(data, backgroundrange=[0, 1])
+    assert abs(mean.mean() - 5.6275) < 1e-5
+    assert abs(std.mean() - 2.67565) < 1e-5
+    mean, std = core.calc_background(data, backgroundrange=[0, 1], method="mean")
+    assert abs(mean.mean() - 5.976) < 1e-5
+    # Note how the standard deviation uses the mean, also for the
+    # default "median" method
+    assert abs(std.mean() - 2.67565) < 1e-5
+
+    with pytest.raises(
+        ValueError, match="method should be one of 'mean', 'median' or 'mode'"
+    ):
+        core.calc_background(data, method="min")
