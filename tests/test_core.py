@@ -155,3 +155,45 @@ def test_upsample(nddata, factor):
     result = core.upsample(nddata, factor=factor)
     expected = np.repeat(nddata, factor, axis=0)
     assert_allclose(result, expected, strict=True)
+
+
+def test_bandpass():
+    """Test basic bandpass correction"""
+
+    # Note that the tolerances are relatively loose, and
+    # are specific to the random seed
+
+    nsamples, nchannels = 8192, 256
+    bandpass = 1 + np.sin(np.linspace(0, np.pi, nchannels))
+    # theoretical value; actual value limited by number of channels
+    average = 1 - 2 * np.cos(np.pi) / np.pi
+    # Set a background with a value of 5 and noise of 2
+    rng = np.random.default_rng(seed=0)
+    data = rng.normal(loc=5, scale=2, size=(nsamples, nchannels))
+    data = data * bandpass[None, :]
+    # Test with a low tolerance
+    np.testing.assert_allclose(data.mean() / 5, average, rtol=1e-2)
+
+    corrdata, bkgmean, bkgstd = core.correct_bandpass(
+        data, backgroundrange=[0, 1], extra=True
+    )
+    # Averaged background should match the theoretical value within precision
+    np.testing.assert_allclose(bkgmean.mean() / 5, average, rtol=1e-2)
+    # After correction, the corrected data has no background and is
+    # normally distributed around 0 with sigma = 1
+    assert abs(corrdata.mean()) < 1e-3
+    assert abs(corrdata.std() - 1) < 1e-3
+
+    # Add a single peak value
+    data[100, ...] += 10 * bandpass
+    corrdata, bkgmean, bkgstd = core.correct_bandpass(
+        data, backgroundrange=[0.1, 1], extra=True
+    )
+
+    # Note: normalization by noise (factor 2) results in the signal being 5
+    assert abs(corrdata[100, ...].mean() - 5) < 0.2
+    # The median is often better, though not much here
+    assert abs(np.ma.median(corrdata[100, ...]) - 5) < 0.1
+    # Verify that surrounding channels are still near 0
+    assert abs(corrdata[99, ...].mean()) < 0.1
+    assert abs(corrdata[101, ...].mean()) < 0.1
