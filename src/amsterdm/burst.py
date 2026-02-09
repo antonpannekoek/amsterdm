@@ -44,8 +44,11 @@ class Burst:
         self.header = header.copy()
         self.data = data.copy() if copy else data
         self._file = file
-        self.path = Path(self._file.name)
-        self.filename = self.path.name
+        if file:
+            self.path = Path(self._file.name)
+            self.filename = self.path.name
+        else:
+            self.path = self.filename = None
 
         if "fanchor" not in self.header:
             self.header["fanchor"] = "mid"
