@@ -16,13 +16,28 @@ from types import EllipsisType
 from astropy.time import Time
 import numpy as np
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.axes import Axes
 from matplotlib.gridspec import GridSpec
+import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from .burst import Burst
 from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST
 from .utils import FInterval, symlog
+
+
+def ensure_figure(
+    ax: Axes, figsize: tuple[float, float] = (12, 8)
+) -> tuple[Figure, Axes]:
+    if not ax:
+        # Create a new figure
+        # Use the pyplot interface for automatic
+        # visualization in notebooks
+        figure = plt.figure(figsize=figsize)
+        ax = figure.add_subplot()
+    else:
+        figure = ax.figure
+    return figure, ax
 
 
 def waterfall(
@@ -32,15 +47,12 @@ def waterfall(
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "median",
     return_image: bool = False,
-    ax=None,
+    ax: Axes | None = None,
     **options,
-):
+) -> tuple[Figure, Axes] | tuple[tuple[Figure, Axes], None]:
     """ """
 
-    if not ax:
-        figure = Figure(figsize=(12, 8))
-        FigureCanvas(figure)
-        ax = figure.add_subplot()
+    fig, ax = ensure_figure(ax)
 
     if badchannels is None:
         badchannels = []
@@ -93,13 +105,13 @@ def waterfall(
     elif cbar == "left":
         cax = divider.append_axes("left", size="5%", pad=1)
     if cbar:
-        cb = ax.figure.colorbar(image, cax=cax, orientation="vertical")
+        cb = fig.colorbar(image, cax=cax, orientation="vertical")
         if cbar == "left":
             cb.ax.yaxis.set_ticks_position("left")
 
     if return_image:
-        return ax, image
-    return ax
+        return (fig, ax), image
+    return (fig, ax)
 
 
 def lightcurve(
@@ -108,9 +120,9 @@ def lightcurve(
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "median",
-    ax=None,
+    ax: Axes | None = None,
     **options,
-):
+) -> tuple[Figure, Axes]:
     """
     Create a light curve plot by summing across channels
 
@@ -118,10 +130,7 @@ def lightcurve(
 
     """
 
-    if not ax:
-        figure = Figure(figsize=(12, 8))
-        FigureCanvas(figure)
-        ax = figure.add_subplot()
+    fig, ax = ensure_figure(ax)
 
     if badchannels is None:
         badchannels = []
@@ -150,7 +159,7 @@ def lightcurve(
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
-    return ax
+    return (fig, ax)
 
 
 def background(
@@ -159,9 +168,9 @@ def background(
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "median",
-    ax=None,
+    ax: Axes | None = None,
     **options,
-):
+) -> tuple[Figure, Axes]:
     """Create a background plot of the mean and std-dev of the background
 
     Parameters:
@@ -171,15 +180,11 @@ def background(
         The second ax item is used for the std-dev background
     """
 
+    fig, ax = ensure_figure(ax)
+
     _, bkg = burst.create_dynspectrum(
         dm, badchannels, backgroundrange, bkg_method=bkg_method, bkg_extra=True
     )
-
-    if not ax:
-        figure = Figure(figsize=(12, 8))
-        FigureCanvas(figure)
-        # Create two axes, on top of each other
-        ax = figure.add_subplot()
 
     label_mean = options.get("label_mean", "mean bkg")
     label_std = options.get("label_std", "bkg stddev")
@@ -200,7 +205,7 @@ def background(
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
-    return ax
+    return (fig, ax)
 
 
 def bowtie(
@@ -212,7 +217,7 @@ def bowtie(
     ndm: int = 50,
     reffreq: float | None = None,
     trange: slice | EllipsisType = Ellipsis,
-    ax=None,
+    ax: Axes | None = None,
     **options,
 ):
     """Create a bowtie plot: varying DM versus time/samples
@@ -259,6 +264,8 @@ def bowtie(
     # maxchan = len(burst.freqs)
     # badchannels = [maxchan - value for value in badchannels]
 
+    fig, ax = ensure_figure(ax)
+
     data = burst.bowtie(
         dm,
         badchannels,
@@ -275,11 +282,6 @@ def bowtie(
         start = trange.start or 0
         stop = trange.stop if trange.stop else data.shape[1]
         extent = [start, stop, dm[1], dm[0]]
-
-    if not ax:
-        figure = Figure(figsize=(12, 8))
-        FigureCanvas(figure)
-        ax = figure.add_subplot()
 
     vmin = options.get("vmin", 0.1)
     vmax = options.get("vmax", 0.9)
@@ -315,7 +317,7 @@ def bowtie(
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
-    return ax
+    return fig, ax
 
 
 def signal2noise(
@@ -327,9 +329,11 @@ def signal2noise(
     bkg_method: str = "median",
     peak: bool = True,
     peak_interval: FInterval | None = None,
-    ax=None,
+    ax: Axes | None = None,
     **options,
-):
+) -> tuple[Figure, Axes]:
+    fig, ax = ensure_figure(ax)
+
     ratios = burst.signal2noise(
         dms=dms,
         reffreq=reffreq,
@@ -339,10 +343,6 @@ def signal2noise(
         peak=peak,
         peak_interval=peak_interval,
     )
-    if not ax:
-        figure = Figure(figsize=(12, 8))
-        FigureCanvas(figure)
-        ax = figure.add_subplot()
 
     xlabel = options.get("xlabel", "DM")
     ylabel = options.get("ylabel", "S / N")
@@ -356,7 +356,7 @@ def signal2noise(
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
-    return ax
+    return fig, ax
 
 
 def grid(
@@ -370,12 +370,11 @@ def grid(
     peak: bool = True,
     peak_interval: FInterval | None = None,
     coherent_dm: float = 0,
-    ax=None,
+    ax: Axes | None = None,
     **options,
-):
+) -> tuple[Figure, Axes]:
     if not ax:
-        figure = Figure(figsize=(12, 8), constrained_layout=True)
-        FigureCanvas(figure)
+        figure = plt.figure(figsize=(12, 8), constrained_layout=True)
     else:
         fig = ax.figure
         # Get the info from the original Axes
@@ -462,4 +461,4 @@ def grid(
     now = Time.now().strftime("%Y-%m-%dT%H:%M:%S")
     info_ax.text(1.2, 1.1, f"Created {now}", ha="right", fontsize=9)
 
-    return w_ax
+    return figure, w_ax
