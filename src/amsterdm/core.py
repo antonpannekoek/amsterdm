@@ -138,7 +138,7 @@ def findpeaklc(
 
 def findrangelc(
     data: np.ndarray | np.ma.MaskedArray,
-    kappa: float = 5,
+    kappa: float = 10,
     minkappa: float = 3,
     window: int = 7,
     maxiter: int = 10,
