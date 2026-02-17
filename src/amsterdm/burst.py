@@ -146,6 +146,8 @@ class Burst:
 
     @cached_property
     def freqs(self):
+        if "freqs" in self.header:
+            return self.header["freqs"]
         nfreq = self.header["nchans"]
         foff = self.header["foff"]
         start = self.header["fch1"]
@@ -167,7 +169,10 @@ class Burst:
 
     @cached_property
     def reltimes(self):
-        """Relative times in seconds"""
+        """Relative times in seconds since start of observation"""
+
+        if "reltimes" in self.header:
+            return self.header["reltimes"]
         dt = self.header["tsamp"]
         nsamp = self.data.shape[0]
         times = np.arange(nsamp) * dt
