@@ -66,18 +66,24 @@ def waterfall(
     vmax = options.get("vmax", 0.9)
     cmap = options.get("cmap", "viridis")
     cbar = options.get("cbar", True)
+    fillmask = options.get("fillmask", "nan")
     xlabel = options.get("xlabel", "samples")
     x2label = options.get("xlabel", "time (milliseconds)")
     ylabel = options.get("ylabel", "channels")
     y2label = options.get("ylabel", "frequency (MHz)")
     origin = options.get("origin", "upper")
     logscale = options.get("logscale", False)
-
     stokesI = burst.create_dynspectrum(
         dm, badchannels, backgroundrange, bkg_method=bkg_method
     )
-
-    stokesI = np.ma.filled(stokesI, np.nan)
+    if fillmask:
+        if isinstance(fillmask, (float, int)):
+            stokesI = np.ma.filled(stokesI, fillmask)
+        elif callable(fillmask):
+            value = fillmask(stokesI)
+            stokesI = np.ma.filled(stokesI, value)
+        else:  # default to NaN
+            stokesI = np.ma.filled(stokesI, np.nan)
 
     if logscale:
         stokesI = symlog(stokesI)
