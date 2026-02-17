@@ -191,13 +191,13 @@ class Burst:
         return channel
 
     def sample2time(self, sample):
-        start = self.header["tstart"]
+        start = self.header.get("tstart", 0)
         dt = self.header["tsamp"] / SOD
         time = start + sample * dt
         return time
 
     def time2sample(self, time):
-        start = self.header["tstart"]
+        start = self.header.get("tstart", 0)
         dt = self.header["tsamp"] / SOD
         sample = np.round((time - start) / dt)
         return sample
@@ -206,6 +206,54 @@ class Burst:
         """Close the underlying file object"""
         if self._file and hasattr(self._file, "close"):
             self._file.close()
+
+    def trim(
+        self,
+        times: tuple[float, float] | None = None,
+        freqs: tuple[float, float] | None = None,
+    ):
+        """Trim the burst section to `times` and `freqs`
+
+        Data is modified in-place. The data in the file, if it exists,
+        is not touched.
+
+        This action is non-reversible, except by recreating the Burst
+        instance.
+
+        Parameters
+        ----------
+
+        times: 2-element tuple or list of floats, with start and end
+            times in milliseconds. If `None`, no trimming is applied
+            to the time axis.
+
+        freqs: 2-element tuple or list of floats, with start and end
+            frequencies in MegaHertz. If `None`, no trimming is
+            applied to the frequency axis.
+
+        """
+
+        if times:
+            dt = self.header["tsamp"]
+            section = round(times[0] / 1e3 / dt), round(times[1] / 1e3 / dt)
+            section = max(section[0], 0), min(section[1], self.data.shape[0])
+            section = slice(*section)
+            self.data = self.data[section, ...]
+            if "reltimes" in self.header:
+                self.header["reltimes"] = self.header["reltimes"][section]
+
+        if freqs:
+            section = (
+                round(self.freq2channel(freqs[0])),
+                round(self.freq2channel(freqs[1])),
+            )
+            if section[0] > section[1]:
+                section = section[::-1]
+            section = max(section[0], 0), min(section[1], self.data.shape[-1])
+            section = slice(*section)
+            self.data = self.data[..., section]
+            if "freqs" in self.header:
+                self.header["freqs"] = self.header["freqs"][section]
 
     def downsample(
         self, factor: int = 1, remainder: str = "droptail", method: str = "mean"
@@ -343,8 +391,14 @@ class Burst:
         if dm:
             dm = {"dm": dm, "freq": self.freqs, "tsamp": self.header["tsamp"]}
 
+        if self.header.get("pol_type", "").lower() == "iquv":
+            # Four polarization channels; use only stokes I
+            data = self.data[:, 2, :]
+            logger.info("Selecting Stokes I data for dynamic spectrum")
+        else:
+            data = self.data
         dynspec = core.create_dynspectrum(
-            self.data,
+            data,
             dm,
             badchannels,
             backgroundrange,
