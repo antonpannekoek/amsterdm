@@ -8,7 +8,7 @@ import numpy as np
 
 from . import core
 from .constants import DEFAULT_BACKGROUND_RANGE, SOD
-from .io import read_fileformat, read_filterbank, read_fits
+from .io import read_fileformat, read_filterbank, read_fits, read_psrfits, read_hdf5
 from .utils import FInterval
 
 
@@ -36,6 +36,10 @@ class Burst:
             header, data = read_filterbank(fobj, le=False)
         elif fileformat == "fits":
             header, data = read_fits(fobj)
+        elif fileformat == "psrfits":
+            header, data = read_psrfits(fobj)
+        elif fileformat == "hdf5":
+            header, data = read_hdf5(fobj)
         header["format"] = fileformat
 
         return cls(header, data, fobj)

@@ -29,11 +29,10 @@ def read_fileformat(fobj):
         # Read the FITS header, check for relevant keywords
         fobj.seek(0)
         header = pyfits.getheader(fobj, ext=0)
-        if header.get("fitstype") != "PSRFITS":
-            raise ValueError(
-                "FITS file does not appear to be PSRFITS: "
-                'incorrect or missing "FITSTYPE" keyword'
-            )
+        if header.get("fitstype") == "PSRFITS":
+            return "psrfits"
+        else:
+            return "fits"
     elif testbytes[:8] == b"\x89HDF\x0d\x0a\x1a\x0a":
         format = "hdf5"  # e.g. CHIME waterfall data
     else:
