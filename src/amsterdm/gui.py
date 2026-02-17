@@ -165,7 +165,6 @@ class BurstPlot(param.Parameterized):
             # The `rasterize()` call overwrites the secondary x-axis
             # label, so we may have to add it again
             for layout in figure.above:
-                print(layout, layout.x_range_name, layout.axis_label)
                 if hasattr(layout, "x_range_name") and layout.x_range_name == "time":
                     layout.axis_label = "time [s]"
         if "freq" not in figure.extra_y_ranges:
