@@ -47,17 +47,19 @@ class Burst:
     def __init__(self, header, data, file=None, copy=False):
         self.header = header.copy()
         self.data = data.copy() if copy else data
+        # copy=False only works if `self.data` is already a MaskedArray
+        self.data = np.ma.masked_invalid(self.data, copy=False)
         self._file = file
         if file:
             self.path = Path(self._file.name)
             self.filename = self.path.name
         else:
             self.path = self.filename = None
-
-        if "fanchor" not in self.header:
-            self.header["fanchor"] = "mid"
+        self.badchannels = []
 
         self._fix_missing()
+
+        self._flag_channels()
 
     # Make the class a context manager to support the 'with' statement
     def __enter__(self):
@@ -71,14 +73,50 @@ class Burst:
         if "nchans" not in self.header:
             logger.warning("'nchans' not found in header; determining from the data")
             self.header["nchans"] = self.data.shape[-1]
+        if "fanchor" not in self.header:
+            self.header["fanchor"] = "mid"
         if "fch1" not in self.header:
             if "fchan1" in self.header:
                 self.header["fch1"] = self.header["fchan1"]
+            elif "freqs" in self.header and isinstance(
+                self.header["freqs"], (list, np.ndarray)
+            ):
+                logger.info("Determining 'fch1' key from frequencies")
+                self.header["fch1"] = self.header["freqs"][0]
             else:
                 logger.critical(
-                    "'fch1' keyword not found in header; data can't be used"
+                    "'fch1' or related keyword not found in header; data can't be used"
                 )
-                raise ValueError("'fhc1' keyword not found in header information")
+                raise ValueError(
+                    "'fch1' or related keyword not found in header information"
+                )
+        if "foff" not in self.header:
+            if "chan_bw" in self.header:
+                self.header["foff"] = self.header["chan_bw"]
+            else:
+                logger.critical(
+                    "'foff' or related keyword not found in header information"
+                )
+                raise ValueError(
+                    "'foff' or related keyword not found in header information"
+                )
+        if "tsamp" not in self.header:
+            if "tbin" in self.header:
+                self.header["tsamp"] = self.header["tbin"]
+            else:
+                logger.critical(
+                    "'tsamp' or related keyword not found in header information"
+                )
+                raise ValueError(
+                    "'tsamp' or related keyword not found in header information"
+                )
+
+    def _flag_channels(self):
+        """Mask any invalid data, and set `self.badchannels` if a complete channel is masked"""
+        if self.data.mask.any():
+            for i in range(self.data.shape[-1]):
+                if self.data[..., i].mask.all():
+                    self.badchannels.append(i)
 
     @cached_property
     def freq_offset(self):
