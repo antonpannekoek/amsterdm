@@ -79,4 +79,4 @@ The FITS file is optional; if not given, the output file name is the same as the
 
 # License
 
-This software is copyright 2026, University of Amsterdam, and is distributed under the MIT license.
+This software is copyright 2026, University of Amsterdam, and is distributed under the GPL-3.0 license. See the LICENSE file for the full text.
