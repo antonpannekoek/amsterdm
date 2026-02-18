@@ -1,6 +1,17 @@
 #! /usr/bin/env python
 
-"""Run examples/simulate.py to create an input file for this example"""
+"""Create one or more plots for a bust file
+
+Usage example:
+
+    python examples/plots.py examples/amsterdm-sim.fits --plots s2n waterfall lc --back 0 0.3333 --back 0.666 1 --dm 123.45
+
+
+Run examples/simulate.py to create an input file for this example:
+
+    python examples/simulate.py
+
+"""
 
 import logging
 from pathlib import Path
@@ -31,7 +42,7 @@ def main(
     plots,
     background,
     badchannels=None,
-    s2nrange=(-1, 1, 50),
+    s2nrange=None,
     s2nsection=None,
     times=None,
     freqs=None,
@@ -39,7 +50,10 @@ def main(
 ):
     setup_logger(loglevel)
     logger.info("Reading file %s", path)
-    s2nrange = (s2nrange[0], s2nrange[1], int(round(s2nrange[2])))
+    if s2nrange:
+        s2nrange = (s2nrange[0], s2nrange[1], int(round(s2nrange[2])))
+    else:  # default to DM +/- 1, 50 steps
+        s2nrange = (dm - 1, dm + 1, 50)
     with amsterdm.openfile(path) as burst:
         logger.info("Done reading file")
         pngfile = path.with_suffix(".png")
@@ -221,7 +235,7 @@ def parse_args():
         "--s2n-range",
         nargs=3,
         type=float,
-        default=[-1, 1, 50],
+        default=None,
         help="DM range for S/N calculation. Three values: low, high, number (2 floats + 1 int)",
     )
     parser.add_argument(
