@@ -8,7 +8,7 @@ import numpy as np
 
 from . import core
 from .constants import DEFAULT_BACKGROUND_RANGE, SOD
-from .io import read_fileformat, read_filterbank, read_fits
+from .io import read_fileformat, read_filterbank, read_fits, read_psrfits, read_hdf5
 from .utils import FInterval
 
 
@@ -36,6 +36,10 @@ class Burst:
             header, data = read_filterbank(fobj, le=False)
         elif fileformat == "fits":
             header, data = read_fits(fobj)
+        elif fileformat == "psrfits":
+            header, data = read_psrfits(fobj)
+        elif fileformat == "hdf5":
+            header, data = read_hdf5(fobj)
         header["format"] = fileformat
 
         return cls(header, data, fobj)
@@ -43,17 +47,19 @@ class Burst:
     def __init__(self, header, data, file=None, copy=False):
         self.header = header.copy()
         self.data = data.copy() if copy else data
+        # copy=False only works if `self.data` is already a MaskedArray
+        self.data = np.ma.masked_invalid(self.data, copy=False)
         self._file = file
         if file:
             self.path = Path(self._file.name)
             self.filename = self.path.name
         else:
             self.path = self.filename = None
-
-        if "fanchor" not in self.header:
-            self.header["fanchor"] = "mid"
+        self.badchannels = []
 
         self._fix_missing()
+
+        self._flag_channels()
 
     # Make the class a context manager to support the 'with' statement
     def __enter__(self):
@@ -67,14 +73,50 @@ class Burst:
         if "nchans" not in self.header:
             logger.warning("'nchans' not found in header; determining from the data")
             self.header["nchans"] = self.data.shape[-1]
+        if "fanchor" not in self.header:
+            self.header["fanchor"] = "mid"
         if "fch1" not in self.header:
             if "fchan1" in self.header:
                 self.header["fch1"] = self.header["fchan1"]
+            elif "freqs" in self.header and isinstance(
+                self.header["freqs"], (list, np.ndarray)
+            ):
+                logger.info("Determining 'fch1' key from frequencies")
+                self.header["fch1"] = self.header["freqs"][0]
             else:
                 logger.critical(
-                    "'fch1' keyword not found in header; data can't be used"
+                    "'fch1' or related keyword not found in header; data can't be used"
                 )
-                raise ValueError("'fhc1' keyword not found in header information")
+                raise ValueError(
+                    "'fch1' or related keyword not found in header information"
+                )
+        if "foff" not in self.header:
+            if "chan_bw" in self.header:
+                self.header["foff"] = self.header["chan_bw"]
+            else:
+                logger.critical(
+                    "'foff' or related keyword not found in header information"
+                )
+                raise ValueError(
+                    "'foff' or related keyword not found in header information"
+                )
+        if "tsamp" not in self.header:
+            if "tbin" in self.header:
+                self.header["tsamp"] = self.header["tbin"]
+            else:
+                logger.critical(
+                    "'tsamp' or related keyword not found in header information"
+                )
+                raise ValueError(
+                    "'tsamp' or related keyword not found in header information"
+                )
+
+    def _flag_channels(self):
+        """Mask any invalid data, and set `self.badchannels` if a complete channel is masked"""
+        if self.data.mask.any():
+            for i in range(self.data.shape[-1]):
+                if self.data[..., i].mask.all():
+                    self.badchannels.append(i)
 
     @cached_property
     def freq_offset(self):
@@ -104,6 +146,8 @@ class Burst:
 
     @cached_property
     def freqs(self):
+        if "freqs" in self.header:
+            return self.header["freqs"]
         nfreq = self.header["nchans"]
         foff = self.header["foff"]
         start = self.header["fch1"]
@@ -125,7 +169,10 @@ class Burst:
 
     @cached_property
     def reltimes(self):
-        """Relative times in seconds"""
+        """Relative times in seconds since start of observation"""
+
+        if "reltimes" in self.header:
+            return self.header["reltimes"]
         dt = self.header["tsamp"]
         nsamp = self.data.shape[0]
         times = np.arange(nsamp) * dt
@@ -144,13 +191,13 @@ class Burst:
         return channel
 
     def sample2time(self, sample):
-        start = self.header["tstart"]
+        start = self.header.get("tstart", 0)
         dt = self.header["tsamp"] / SOD
         time = start + sample * dt
         return time
 
     def time2sample(self, time):
-        start = self.header["tstart"]
+        start = self.header.get("tstart", 0)
         dt = self.header["tsamp"] / SOD
         sample = np.round((time - start) / dt)
         return sample
@@ -159,6 +206,54 @@ class Burst:
         """Close the underlying file object"""
         if self._file and hasattr(self._file, "close"):
             self._file.close()
+
+    def trim(
+        self,
+        times: tuple[float, float] | None = None,
+        freqs: tuple[float, float] | None = None,
+    ):
+        """Trim the burst section to `times` and `freqs`
+
+        Data is modified in-place. The data in the file, if it exists,
+        is not touched.
+
+        This action is non-reversible, except by recreating the Burst
+        instance.
+
+        Parameters
+        ----------
+
+        times: 2-element tuple or list of floats, with start and end
+            times in milliseconds. If `None`, no trimming is applied
+            to the time axis.
+
+        freqs: 2-element tuple or list of floats, with start and end
+            frequencies in MegaHertz. If `None`, no trimming is
+            applied to the frequency axis.
+
+        """
+
+        if times:
+            dt = self.header["tsamp"]
+            section = round(times[0] / 1e3 / dt), round(times[1] / 1e3 / dt)
+            section = max(section[0], 0), min(section[1], self.data.shape[0])
+            section = slice(*section)
+            self.data = self.data[section, ...]
+            if "reltimes" in self.header:
+                self.header["reltimes"] = self.header["reltimes"][section]
+
+        if freqs:
+            section = (
+                round(self.freq2channel(freqs[0])),
+                round(self.freq2channel(freqs[1])),
+            )
+            if section[0] > section[1]:
+                section = section[::-1]
+            section = max(section[0], 0), min(section[1], self.data.shape[-1])
+            section = slice(*section)
+            self.data = self.data[..., section]
+            if "freqs" in self.header:
+                self.header["freqs"] = self.header["freqs"][section]
 
     def downsample(
         self, factor: int = 1, remainder: str = "droptail", method: str = "mean"
@@ -296,8 +391,14 @@ class Burst:
         if dm:
             dm = {"dm": dm, "freq": self.freqs, "tsamp": self.header["tsamp"]}
 
+        if self.header.get("pol_type", "").lower() == "iquv":
+            # Four polarization channels; use only stokes I
+            data = self.data[:, 2, :]
+            logger.info("Selecting Stokes I data for dynamic spectrum")
+        else:
+            data = self.data
         dynspec = core.create_dynspectrum(
-            self.data,
+            data,
             dm,
             badchannels,
             backgroundrange,

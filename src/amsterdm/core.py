@@ -1,5 +1,7 @@
 import logging
 
+from astropy.modeling.fitting import TRFLSQFitter
+from astropy.modeling.models import Gaussian1D
 import numpy as np
 
 from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST
@@ -145,7 +147,7 @@ def findrangelc(
     minvalues: int = 10,
     searchrange: tuple[float, float] = (0, 1),
     bkg_extra: bool = False,
-):
+) -> tuple[int, int] | tuple[tuple[int, int], tuple[float, float]]:
     """Find the range of the active light curve.
 
     data: the one-dimensional light curve intensity data
@@ -640,6 +642,7 @@ def create_dynspectrum(
     """
 
     data = np.squeeze(data)
+
     if data.ndim == 2:
         xx = np.ma.array(data)
         yy = None
@@ -650,7 +653,6 @@ def create_dynspectrum(
     else:
         xx = np.ma.array(data[:, 0, :])
         yy = np.ma.array(data[:, 1, :])
-
     if badchannels is not None:
         rowids = (
             list(badchannels)
@@ -691,8 +693,11 @@ def create_dynspectrum(
             yy_bkgmean, yy_bkgstd = calc_background(
                 yy, backgroundrange, method=bkg_method
             )
-
     # Perform the bandpass correction using the background
+    # Note: since xx is a masked array, any division by zero
+    # (in the stddev data) will result in those entries being masked
+    # This is convenient `np.ma` behaviour.See
+    # https://numpy.org/doc/stable/reference/maskedarray.generic.html#operations-on-masked-arrays
     xx = (xx - xx_bkgmean[None, :]) / xx_bkgstd[None, :]
     if yy is not None:
         yy = (yy - yy_bkgmean[None, :]) / yy_bkgstd[None, :]
@@ -1166,3 +1171,26 @@ def signal2noise(
         ratios.append(ratio)
 
     return np.asarray(ratios)
+
+
+def fit_ratios(dms, ratios) -> tuple[float, float, float]:
+    """Perform a least-squares fit of a Gaussian curve to the
+    signal-to-noise ratios
+
+    Returns the ampltidue, mean and standard deviation of the fitted
+    curve
+
+    """
+
+    fitter = TRFLSQFitter()
+    stddev = (max(dms) - min(dms)) / 4  # rough estimate
+    model = Gaussian1D(amplitude=max(ratios), mean=np.median(dms), stddev=stddev)
+    fit = fitter(model, dms, ratios)
+    ampl, mean, stddev = fit.amplitude.value, fit.mean.value, fit.stddev.value
+    logger.info(
+        "Ratio fit to Gaussian; result amplitude, mean +/- stddev = %.3f, %.3f +/- %.3f",
+        ampl,
+        mean,
+        stddev,
+    )
+    return ampl, mean, stddev

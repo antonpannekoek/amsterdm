@@ -11,6 +11,7 @@ figures, one will likely want to create their own figures manually.
 """
 
 from contextlib import suppress
+import logging
 from types import EllipsisType
 
 from astropy.time import Time
@@ -23,7 +24,11 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from .burst import Burst
 from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST
+from . import core
 from .utils import FInterval, symlog
+
+
+logger = logging.getLogger(__package__)
 
 
 def ensure_figure(
@@ -61,18 +66,24 @@ def waterfall(
     vmax = options.get("vmax", 0.9)
     cmap = options.get("cmap", "viridis")
     cbar = options.get("cbar", True)
+    fillmask = options.get("fillmask", "nan")
     xlabel = options.get("xlabel", "samples")
     x2label = options.get("xlabel", "time (milliseconds)")
     ylabel = options.get("ylabel", "channels")
     y2label = options.get("ylabel", "frequency (MHz)")
     origin = options.get("origin", "upper")
     logscale = options.get("logscale", False)
-
     stokesI = burst.create_dynspectrum(
         dm, badchannels, backgroundrange, bkg_method=bkg_method
     )
-
-    stokesI = np.ma.filled(stokesI, np.nan)
+    if fillmask:
+        if isinstance(fillmask, (float, int)):
+            stokesI = np.ma.filled(stokesI, fillmask)
+        elif callable(fillmask):
+            value = fillmask(stokesI)
+            stokesI = np.ma.filled(stokesI, value)
+        else:  # default to NaN
+            stokesI = np.ma.filled(stokesI, np.nan)
 
     if logscale:
         stokesI = symlog(stokesI)
@@ -329,6 +340,7 @@ def signal2noise(
     bkg_method: str = "median",
     peak: bool = True,
     peak_interval: FInterval | None = None,
+    fit: bool = False,
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
@@ -352,6 +364,59 @@ def signal2noise(
         ratios = symlog(ratios)
 
     ax.plot(dms, ratios, "o")
+
+    if fit:
+        ampl, mean, stddev = core.fit_ratios(dms, ratios)
+        x = np.linspace(dms[0], dms[-1])
+        y = ampl * np.exp(-0.5 * (x - mean) ** 2 / stddev**2)
+        ax.plot(x, y, "-")
+        ax.hlines(
+            [ampl, ampl - 1],
+            0,
+            1,
+            transform=ax.get_yaxis_transform(),
+            alpha=0.2,
+            color="k",
+            linestyle="--",
+        )
+        cuts = [
+            mean - stddev * np.sqrt(-2 * np.log((ampl - 1) / ampl)),
+            mean,
+            mean + stddev * np.sqrt(-2 * np.log((ampl - 1) / ampl)),
+        ]
+        if cuts[0] < min(dms):
+            cuts.pop(0)
+        if cuts[-1] > max(dms):
+            cuts.pop()
+        ax.vlines(
+            cuts,
+            0,
+            1,
+            transform=ax.get_xaxis_transform(),
+            alpha=0.2,
+            color="k",
+            linestyle="--",
+        )
+        for cut in cuts:
+            ax.text(
+                cut,
+                min(ratios),
+                f"{cut:.5f}",
+                ha="left",
+                va="bottom",
+                rotation="vertical",
+            )
+        if len(cuts) == 3:
+            dcut = (cuts[2] - cuts[0]) / 2
+            ax.text(
+                0.98,
+                0.98,
+                rf"DM = {cuts[1]:.5f} $\pm$ {dcut:.5f}",
+                transform=ax.transAxes,
+                ha="right",
+                va="top",
+                fontsize=14,
+            )
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)

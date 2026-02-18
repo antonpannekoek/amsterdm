@@ -1,10 +1,11 @@
+"""Module to read Filterbank data"""
+
 import os
 import struct
 
-import astropy.io.fits as pyfits
 import numpy as np
 
-from .utils import coord2deg
+from ..utils import coord2deg
 
 
 # The following two values are valid when the endianness of the
@@ -12,8 +13,6 @@ from .utils import coord2deg
 INTSIZE = 4  # Number of bytes for an integer number
 DOUBLESIZE = 8  # Number of bytes for a double precision floating point number
 
-# Seconds in a day
-SOD = 60 * 60 * 24
 
 # All header keys with their data types
 HEADER_KEYS = {
@@ -152,40 +151,3 @@ def read_filterbank(file, le=True):
     header = read_header(file, le=le)
     data = read_data(file, header, le=le)
     return header, data
-
-
-def read_fits(file):
-    hdulist = pyfits.open(file)
-    for hdu in hdulist:
-        if hdu.data is not None:
-            header = hdulist[0].header
-            data = hdulist[0].data
-            break
-    else:
-        raise ValueError("No data found in FITS file")
-    dictheader = {}
-    for key in header:
-        key = key.lower()
-        if key in ["simple", "history", "comment"]:
-            continue
-        dictheader[key] = header[key]
-    return header, data
-
-
-def read_fileformat(fobj):
-    filepos = fobj.tell()
-    fobj.seek(0)
-    testbytes = fobj.read(80)
-    # 30 is only "header_start" and "header_end"
-    if len(testbytes) < 30:
-        raise ValueError("file truncated")
-    if testbytes[:16] == b"\x0c\x00\x00\x00HEADER_START":
-        format = "filterbank-le"
-    elif testbytes[:16] == b"\x00\x00\x00\x0cHEADER_START":
-        format = "filterbank-be"
-    elif testbytes[:30] == b"SIMPLE  =                    T":
-        format = "fits"
-    else:
-        raise ValueError("unknown file format")
-    fobj.seek(filepos)
-    return format

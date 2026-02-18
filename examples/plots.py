@@ -1,5 +1,18 @@
 #! /usr/bin/env python
 
+"""Create one or more plots for a bust file
+
+Usage example:
+
+    python examples/plots.py examples/amsterdm-sim.fits --plots s2n waterfall lc --back 0 0.3333 --back 0.666 1 --dm 123.45
+
+
+Run examples/simulate.py to create an input file for this example:
+
+    python examples/simulate.py
+
+"""
+
 import logging
 from pathlib import Path
 
@@ -23,15 +36,31 @@ def setup_logger(loglevel):
     logger.setLevel(logging.DEBUG)
 
 
-def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
+def main(
+    path,
+    dm,
+    plots,
+    background,
+    badchannels=None,
+    s2nrange=None,
+    s2nsection=None,
+    times=None,
+    freqs=None,
+    loglevel=logging.INFO,
+):
     setup_logger(loglevel)
     logger.info("Reading file %s", path)
+    if s2nrange:
+        s2nrange = (s2nrange[0], s2nrange[1], int(round(s2nrange[2])))
+    else:  # default to DM +/- 1, 50 steps
+        s2nrange = (dm - 1, dm + 1, 50)
     with amsterdm.openfile(path) as burst:
         logger.info("Done reading file")
         pngfile = path.with_suffix(".png")
         if badchannels is None:
             badchannels = []
-
+        if times or freqs:
+            burst.trim(times=times, freqs=freqs)
         # badchannels = np.hstack([np.arange(0, 255, 32), np.arange(1, 255, 32), np.arange(30, 255, 32), np.arange(31, 255, 32)])
         # badchannels = [1, 9, 15, 16, 17, 76, 79, 80, 81, 82, 83, 98, 99, 100, 103, 111, 112, 113, 123, 127]
         if burst.header["foff"]:
@@ -39,21 +68,29 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
             nchan = burst.data.shape[-1]
             badchannels = [nchan - channel for channel in badchannels]
 
-        sections = []
+        if s2nsection:
+            sections = [s2nsection]
+        else:
+            sections = []
         if (
             "lightcurve" in plots
             or "lc" in plots
             or "ratio" in plots
             or "s2n" in plots
             or "grid" in plots
-        ):
+        ) and not sections:
             logger.info("Creating light curve")
-            lc = (burst.lightcurve(dm, badchannels, backgroundrange=background),)
+            lc = burst.lightcurve(dm, badchannels, backgroundrange=background)
+            logger.info("Determining sections: %s", sections)
             sections = core.findrangelc(lc, kappa=10)
 
         if "all" in plots or "waterfall" in plots or "dynspec" in plots:
             fig, ax = dmplot.waterfall(
-                burst, dm, badchannels, backgroundrange=background
+                burst,
+                dm,
+                badchannels,
+                backgroundrange=background,
+                fillmask=np.ma.median,
             )
             ax.set_title(f"Waterfall plot of {path.stem}")
             outfile = pngfile.with_stem(path.stem + "-waterfall")
@@ -101,14 +138,21 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
         if "all" in plots or "ratio" in plots or "s2n" in plots:
             section = None
             if sections:
-                nsamples = burst.data.shape[0]
                 # combine sections into one big section
                 section = [sections[0][0], sections[-1][1]]
-                # Extend it on both sides to cover dispersion ("rolling the axis")
-                section = (max(0, section[0] - 1000), min(nsamples, section[1] + 1000))
+                # # Extend it on both sides to cover dispersion ("rolling the axis")
+                # section = (max(0, section[0]), min(nsamples, section[1]))
+
                 # convert to fractions
+                nsamples = burst.data.shape[0]
                 section = (section[0] / nsamples, section[1] / nsamples)
-            dms = np.linspace(dm - 0.15, dm + 0.15, 50)
+                delta = section[1] - section[0]
+                section = (
+                    max(section[0] - delta / 2, 0),
+                    min(section[1] + delta / 2, nsamples),
+                )
+            dms = np.linspace(*s2nrange)
+
             peak = True
             fig, ax = dmplot.signal2noise(
                 burst,
@@ -117,6 +161,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
                 backgroundrange=background,
                 peak=peak,
                 peak_interval=section,
+                fit=True,
             )
             if peak:
                 ax.set_title(f"Peak signal to noise for {path.stem}")
@@ -135,7 +180,7 @@ def main(path, dm, plots, background, badchannels=None, loglevel=logging.INFO):
                 section = (max(0, section[0] - 1000), min(nsamples, section[1] + 1000))
                 # convert to fractions
                 section = (section[0] / nsamples, section[1] / nsamples)
-            dms = np.linspace(dm - 0.1, dm + 0.1, 50)
+            dms = np.linspace(*s2nrange)
             peak = True
             fig, ax = dmplot.grid(
                 burst,
@@ -186,10 +231,47 @@ def parse_args():
         action="append",
         help="Set of start and end (time) fractions for the background estimate",
     )
+    parser.add_argument(
+        "--s2n-range",
+        nargs=3,
+        type=float,
+        default=None,
+        help="DM range for S/N calculation. Three values: low, high, number (2 floats + 1 int)",
+    )
+    parser.add_argument(
+        "--s2n-section", nargs=2, type=float, help="Sample section to compute S/N for"
+    )
+    parser.add_argument(
+        "--times",
+        nargs=2,
+        type=float,
+        help="Time range to select data (in milliseconds)",
+    )
+    parser.add_argument(
+        "--freqs", nargs=2, type=float, help="Frequency range to select data (in MHz)"
+    )
+
+    # parser.add_argument(
+    #    '--plot-extremes',
+    #    action='store_true',
+    #    help=("If a 's2n' plot is selected (and thus a DM range exist), "
+    #          "and a 'waterfall' or 'lightcurve' plot is also selected, "
+    #          "plot the latter plot(s) at the extremes of the DM range")
+    # )
     args = parser.parse_args()
     return args
 
 
 if __name__ == "__main__":
     args = parse_args()
-    main(Path(args.file), args.dm, args.plots, args.back, badchannels=args.badchannels)
+    main(
+        Path(args.file),
+        args.dm,
+        args.plots,
+        args.back,
+        badchannels=args.badchannels,
+        s2nrange=args.s2n_range,
+        s2nsection=args.s2n_section,
+        times=args.times,
+        freqs=args.freqs,
+    )
