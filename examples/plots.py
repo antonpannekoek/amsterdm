@@ -82,7 +82,7 @@ def main(
             logger.info("Creating light curve")
             lc = burst.lightcurve(dm, badchannels, backgroundrange=background)
             logger.info("Determining sections: %s", sections)
-            sections = core.findrangelc(lc, kappa=10)
+            sections, _ = core.findrangelc(lc, kappa=10)
 
         if "all" in plots or "waterfall" in plots or "dynspec" in plots:
             fig, ax = dmplot.waterfall(

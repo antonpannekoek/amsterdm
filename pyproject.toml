@@ -7,7 +7,7 @@ authors = [
 readme = "README.md"
 dynamic = ["version"]  # Derived from Git, with a fallback version
 
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 
 dependencies = [

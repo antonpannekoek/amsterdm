@@ -4,3 +4,6 @@
 # Ignore input and output files
 *.fil
 *.png
+
+# Ignore the Setuptools-scm version file
+src/amsterdm/version.py

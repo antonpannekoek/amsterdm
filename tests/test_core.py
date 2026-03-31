@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_array_equal
 import pytest
 from pytest import approx
 
@@ -38,7 +38,7 @@ def data_4d(base_1d):
     return data
 
 
-@pytest.fixture(params=[2, 3, 4])  # , name="nddata")
+@pytest.fixture(params=[2, 3, 4])
 def nddata(base_1d, request):
     if request.param == 2:
         nddata = base_1d.reshape(8, 1)
@@ -125,21 +125,15 @@ class TestDownsample:
         assert_allclose(result, expected, strict=True)
 
 
-#    def test_upsample(nddata, remainder, factor, method, means):
-#        result = core.upsample(nddata, factor=factor)
-
-
 def test_downsample_errors():
-    data = np.arange(1, 9, dtype=float)
-
-    with pytest.raises(ValueError, match="'data' should at least be two-dimensional"):
-        core.downsample(data, factor=2)
-
-    data = data.reshape(8, 1)
+    data = np.arange(1, 9, dtype=float).reshape(8, 1)
     data = np.repeat(data, 3, axis=1)
 
     with pytest.raises(ValueError, match="'factor' should be a positive integer"):
         core.downsample(data, factor=0)
+
+    with pytest.raises(ValueError, match="'factor' should be a positive integer"):
+        core.downsample(data, factor=1.5)
 
     with pytest.raises(ValueError, match="'method' should be one of 'mean' or 'sum'"):
         core.downsample(data, factor=2, method="product")
@@ -157,8 +151,13 @@ def test_upsample(nddata, factor):
     expected = np.repeat(nddata, factor, axis=0)
     assert_allclose(result, expected, strict=True)
 
+    with pytest.raises(ValueError, match="'factor' should be a positive integer"):
+        core.upsample(nddata, 0)
+    with pytest.raises(ValueError, match="'factor' should be a positive integer"):
+        core.upsample(nddata, 1.5)
 
-def test_bandpass():
+
+def test_correct_bandpass():
     """Test basic bandpass correction"""
 
     # Note that the tolerances are relatively loose, and
@@ -175,9 +174,7 @@ def test_bandpass():
     # Test with a low tolerance
     np.testing.assert_allclose(data.mean() / 5, average, rtol=1e-2)
 
-    corrdata, bkgmean, bkgstd = core.correct_bandpass(
-        data, backgroundrange=[0, 1], extra=True
-    )
+    corrdata, bkgmean, bkgstd = core.correct_bandpass(data, backgroundrange=[0, 1])
     # Averaged background should match the theoretical value within precision
     np.testing.assert_allclose(bkgmean.mean() / 5, average, rtol=1e-2)
     # After correction, the corrected data has no background and is
@@ -187,9 +184,7 @@ def test_bandpass():
 
     # Add a single peak value
     data[100, ...] += 10 * bandpass
-    corrdata, bkgmean, bkgstd = core.correct_bandpass(
-        data, backgroundrange=[0.1, 1], extra=True
-    )
+    corrdata, bkgmean, bkgstd = core.correct_bandpass(data, backgroundrange=[0.1, 1])
 
     # Note: normalization by noise (factor 2) results in the signal being 5
     assert corrdata[100, ...].mean() == approx(5, abs=0.2)
@@ -244,29 +239,38 @@ def test_findrangelc():
 
     data[18:23] = 5
 
-    sections = core.findrangelc(data)
+    sections, bkg = core.findrangelc(data)
     assert sections == [(14, 25)]
+    assert bkg[0] == 1  # median background
+    assert bkg[1] == 0  # no noise; background identical everywhere
+
     # Search range shouldn't matter if it completely overlaps
-    sections = core.findrangelc(data, searchrange=[0.0, 0.5])
+    # the peak range
+    sections, _ = core.findrangelc(data, searchrange=[0.0, 0.5])
     assert sections == [(14, 25)]
-    sections = core.findrangelc(data, searchrange=[0.1, 0.2])
+    # Restricted range
+    sections, _ = core.findrangelc(data, searchrange=[0.1, 0.2])
     assert sections == [(14, 20)]
-    sections = core.findrangelc(data, searchrange=[0.5, 1])
+    # Peaks outside of search range
+    sections, _ = core.findrangelc(data, searchrange=[0.5, 1])
     assert sections == []
 
     # Test multiple, non-overlapping ranges
     data[68:73] = 8
 
-    sections = core.findrangelc(data)
+    sections, bkg = core.findrangelc(data)
+    assert bkg[0] == 1  # median background
+    assert bkg[1] == 0  # no noise; background identical everywhere
     assert sections == [(14, 25), (64, 75)]
-    # Search range shouldn't matter if it completely overlaps
-    sections = core.findrangelc(data, searchrange=[0.0, 0.5])
+
+    # Test different search ranges
+    sections, _ = core.findrangelc(data, searchrange=[0.0, 0.5])
     assert sections == [(14, 25)]
-    sections = core.findrangelc(data, searchrange=[0.1, 0.2])
+    sections, _ = core.findrangelc(data, searchrange=[0.1, 0.2])
     assert sections == [(14, 20)]
-    sections = core.findrangelc(data, searchrange=[0.5, 1])
+    sections, _ = core.findrangelc(data, searchrange=[0.5, 1])
     assert sections == [(64, 75)]
-    sections = core.findrangelc(data, searchrange=[0.7, 1])
+    sections, _ = core.findrangelc(data, searchrange=[0.7, 1])
     assert sections == [(70, 75)]
 
     # Test multiple overlapping ranges
@@ -274,11 +278,13 @@ def test_findrangelc():
     # is extended slightly
     data[26:30] = 6
     data[77:80] = 4
-    sections = core.findrangelc(data)
+    sections, bkg = core.findrangelc(data)
+    assert bkg[0] == 1  # median background
+    assert bkg[1] == 0  # no noise; background identical everywhere
     assert sections == [(14, 32), (64, 82)]
 
 
-def test_background_calculation():
+def test_calc_background():
     nsamples, nchannels = 1024, 128
     rng = np.random.default_rng(seed=0)
     data = rng.normal(loc=5, scale=2, size=(nsamples, nchannels))
@@ -308,6 +314,255 @@ def test_background_calculation():
     assert std.mean() == approx(2.67565, abs=1e-5)
 
     with pytest.raises(
-        ValueError, match="method should be one of 'mean', 'median' or 'mode'"
+        ValueError, match="method should be one of 'mean', 'median', 'mode' or 'none'"
     ):
         core.calc_background(data, method="min")
+
+    backgroundrange = [-1, 1]
+    with pytest.raises(ValueError, match="incorrect background range"):
+        core.calc_background(data, backgroundrange=backgroundrange)
+    backgroundrange = [[0, 0.2], [0.6, 1.1]]
+    with pytest.raises(ValueError, match="incorrect background range"):
+        core.calc_background(data, backgroundrange=backgroundrange)
+    backgroundrange = [0.6, 0.4]
+    with pytest.raises(ValueError, match="incorrect background range"):
+        core.calc_background(data, backgroundrange=backgroundrange)
+
+
+def test_dedisperse():
+    data = np.ones(80).reshape(10, 8)  # 10 samples by 8 channels
+    for i in range(data.shape[0]):
+        data[i] = i + 1
+    freqs = np.arange(1200, 1000, -25)  # First frequency = top frequency
+
+    # 1 millisecond sampling time
+
+    result = core.dedisperse(data, freqs, tsamp=1, dm=0)
+    assert_allclose(result, data)
+
+    result = core.dedisperse(data, freqs, tsamp=1, dm=5)
+    # No change at the reference frequency
+    assert_allclose(result[:, 0], data[:, 0])
+    expected = np.array(
+        [
+            [1, 2, 2, 3, 4, 5, 5, 6],
+            [2, 3, 3, 4, 5, 6, 6, 7],
+            [3, 4, 4, 5, 6, 7, 7, 8],
+            [4, 5, 5, 6, 7, 8, 8, 9],
+            [5, 6, 6, 7, 8, 9, 9, 10],
+            [6, 7, 7, 8, 9, 10, 10, 1],
+            [7, 8, 8, 9, 10, 1, 1, 2],
+            [8, 9, 9, 10, 1, 2, 2, 3],
+            [9, 10, 10, 1, 2, 3, 3, 4],
+            [10, 1, 1, 2, 3, 4, 4, 5],
+        ]
+    )
+    assert_allclose(result, expected)
+
+    # This wraps around at the lower frequencies
+    result = core.dedisperse(data, freqs, tsamp=1, dm=100)
+    expected = np.array(
+        [
+            [1, 3, 7, 1, 6, 2, 9, 8],
+            [2, 4, 8, 2, 7, 3, 10, 9],
+            [3, 5, 9, 3, 8, 4, 1, 10],
+            [4, 6, 10, 4, 9, 5, 2, 1],
+            [5, 7, 1, 5, 10, 6, 3, 2],
+            [6, 8, 2, 6, 1, 7, 4, 3],
+            [7, 9, 3, 7, 2, 8, 5, 4],
+            [8, 10, 4, 8, 3, 9, 6, 5],
+            [9, 1, 5, 9, 4, 10, 7, 6],
+            [10, 2, 6, 10, 5, 1, 8, 7],
+        ]
+    )
+    assert_allclose(result, expected)
+
+    with pytest.raises(
+        ValueError, match="`freqs` length does not match the last axis of `data`"
+    ):
+        freqs = np.arange(1200, 1000, -20)
+        core.dedisperse(data, freqs, tsamp=1, dm=100)
+
+
+def test_flag():
+    data = np.ones(80).reshape(10, 8)
+    badchannels = [1, 3, 5]
+    result = core.flag(data, badchannels)
+    expected = np.tile([0, 1, 0, 1, 0, 1, 0, 0], (10, 1)).astype(bool)
+    assert_array_equal(result.mask, expected)
+
+    # Add flagged channels to the previous result
+    badchannels = {2, 6}
+    result = core.flag(result, badchannels)
+    expected = np.tile([0, 1, 1, 1, 0, 1, 1, 0], (10, 1)).astype(bool)
+    assert_array_equal(result.mask, expected)
+
+    badchannels = [8]
+    with pytest.raises(IndexError):
+        _ = core.flag(data, badchannels)
+
+
+def test_calc_intensity():
+    # Deprecated function
+    pass
+
+
+def test_create_dynspectrum():
+    # four time samples by three channels
+    data = {
+        "xx": np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]),
+        "yy": np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]) / 2,
+    }
+    freqs = np.array([1000, 1100, 1200])
+    # No background correction
+    idata, bkg = core.create_dynspectrum(data, freqs, tsamp=1, dm=0, bkg_method=None)
+    expected = np.array(
+        [[0.75, 0.75, 0.75], [1.5, 1.5, 1.5], [2.25, 2.25, 2.25], [3, 3, 3]]
+    )
+    assert_allclose(idata, expected)
+    assert_allclose(bkg[0], np.zeros(3), strict=True)
+    assert_allclose(bkg[1], np.zeros(3), strict=True)
+
+    # full range for the background calculation
+    idata, bkg = core.create_dynspectrum(
+        data, freqs, tsamp=1, dm=0, backgroundrange=[0, 1]
+    )
+    assert_allclose(bkg[0], 1.875 * np.ones(3))
+    assert_allclose(bkg[1], 0.883883476 * np.ones(3))
+    expected = np.array(
+        [
+            [-1.341641, -1.341641, -1.341641],
+            [-0.447214, -0.447214, -0.447214],
+            [0.447214, 0.447214, 0.447214],
+            [1.341641, 1.341641, 1.341641],
+        ]
+    )
+    assert_allclose(idata, expected, rtol=1e-6)
+
+    with pytest.raises(
+        ValueError, match="'xx' and 'yy' channels do no match in dimensions"
+    ):
+        data["yy"] = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]]) / 2
+        core.create_dynspectrum(data, freqs, tsamp=1, dm=0, backgroundrange=None)
+    data["yy"] = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]) / 2
+    with pytest.raises(
+        ValueError, match="`freqs` length does not match the last axis of `data`"
+    ):
+        freqs = np.array([1000, 1100, 1200, 1300])
+        core.create_dynspectrum(data, freqs, tsamp=1, dm=0, backgroundrange=None)
+    freqs = np.array([1000, 1100, 1200])
+
+    # Test 3d data
+    data = np.array([data["xx"], data["yy"]])
+    data = np.rollaxis(data, 1, 0)  # put polarization dimension in the middle
+    assert data.shape == (4, 2, 3)
+
+    idata, bkg = core.create_dynspectrum(
+        data, freqs, tsamp=1, dm=0, backgroundrange=[0, 1]
+    )
+    assert_allclose(bkg[0], 1.875 * np.ones(3))
+    assert_allclose(bkg[1], 0.883883476 * np.ones(3))
+    assert_allclose(idata, expected, rtol=1e-6)
+
+    data = data[:, 0, :]
+    idata, bkg = core.create_dynspectrum(
+        data, freqs, tsamp=1, dm=0, backgroundrange=[0, 1]
+    )
+    assert_allclose(bkg[0], [2.5, 2.5, 2.5])
+    assert_allclose(bkg[1], np.sqrt([1.25, 1.25, 1.25]))
+    expected = np.array(
+        [
+            [-1.34164079, -1.34164079, -1.34164079],
+            [-0.4472136, -0.4472136, -0.4472136],
+            [0.4472136, 0.4472136, 0.4472136],
+            [1.34164079, 1.34164079, 1.34164079],
+        ]
+    )
+    assert_allclose(idata, expected, rtol=1e-6)
+
+    idata, bkg = core.create_dynspectrum(
+        data, freqs, tsamp=1, dm=10, backgroundrange=[0, 1]
+    )
+    assert_allclose(bkg[0], [2.5, 2.5, 2.5])
+    assert_allclose(bkg[1], np.sqrt([1.25, 1.25, 1.25]))
+    expected = np.array(
+        [
+            [-0.4472135954999579, -0.4472135954999579, -1.3416407864998738],
+            [0.4472135954999579, 0.4472135954999579, -0.4472135954999579],
+            [1.3416407864998738, 1.3416407864998738, 0.4472135954999579],
+            [-1.3416407864998738, -1.3416407864998738, 1.3416407864998738],
+        ]
+    )
+
+
+def test_calc_lightcurve():
+    data = {
+        "xx": np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]),
+        "yy": np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]) / 2,
+    }
+    freqs = np.array([1000, 1100, 1200])
+    result, bkg = core.calc_lightcurve(
+        data, freqs, tsamp=1, dm=10, backgroundrange=[0, 1]
+    )
+    assert bkg[0] == pytest.approx(1.875)
+    assert bkg[1] == pytest.approx(0.883883476483)
+    expected = np.array([-2.23606798, 0.4472136, 3.13049517, -1.34164079])
+    assert_allclose(result, expected)
+
+
+def test_calc_lightcurve_from_waterfall():
+    # Dedispersed and bandpass corrected data; see test_create_waterfall
+    # above.
+    data = np.array(
+        [
+            [-0.4472135954999579, -0.4472135954999579, -1.3416407864998738],
+            [0.4472135954999579, 0.4472135954999579, -0.4472135954999579],
+            [1.3416407864998738, 1.3416407864998738, 0.4472135954999579],
+            [-1.3416407864998738, -1.3416407864998738, 1.3416407864998738],
+        ]
+    )
+    result = core.calc_lightcurve_from_waterfall(data)
+    expected = np.array([-2.23606798, 0.4472136, 3.13049517, -1.34164079])
+    assert_allclose(result, expected)
+
+
+def test_bowtie():
+    data = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    freqs = np.array([1000, 1100, 1200])
+    dminterval = [9, 11]
+    result = core.bowtie(data, freqs, tsamp=1, dminterval=dminterval, ndm=5)
+    expected = np.array(
+        [
+            [-3.0, 1.66666667, 6.33333333, 11.0],
+            [-1.0, 3.66666667, 8.33333333, 5.0],
+            [1.0, 5.66666667, 10.33333333, -1.0],
+            [3.0, 7.66666667, 4.33333333, 1.0],
+            [5.0, 9.66666667, -1.66666667, 3.0],
+        ]
+    )
+    assert_allclose(result, expected)
+
+
+def test_signal2noise():
+    data = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    freqs = np.array([1000, 1100, 1200])
+    dminterval = [9, 11]
+    result = core.signal2noise(data, freqs, 1, dminterval, ndm=9)
+    # First value is a list of DMs
+    assert_allclose(result[0], np.linspace(9, 11, 9))
+    expected = np.array(
+        [9.0, 9.0, 9.0, 9.0, 11.0, 8.33333333, 8.33333333, 8.33333333, 7.0]
+    )
+    # Second value is a list of signal-to-noise ratios
+    assert_allclose(result[1], expected)
+
+
+def test_fit_ratios():
+    # Fit a triangle to a Gaussian
+    dms = [8, 9, 10, 11, 12]
+    ratios = [1, 2, 3, 2, 1]
+    ampl, mean, stddev = core.fit_ratios(dms, ratios)
+
+    assert ampl == pytest.approx(2.8402246050285)
+    assert mean == pytest.approx(10.0)
+    assert stddev == pytest.approx(1.3304348)
