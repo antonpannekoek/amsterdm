@@ -388,20 +388,21 @@ class Burst:
 
         """
 
-        if dm:
-            dm = {"dm": dm, "freq": self.freqs, "tsamp": self.header["tsamp"]}
-
         if self.header.get("pol_type", "").lower() == "iquv":
             # Four polarization channels; use only stokes I
             data = self.data[:, 2, :]
             logger.info("Selecting Stokes I data for dynamic spectrum")
         else:
             data = self.data
-        dynspec = core.create_dynspectrum(
+
+        data = core.flag(data, badchannels)
+
+        dynspec, _ = core.create_dynspectrum(
             data,
+            self.freqs,
+            self.header["tsamp"],
             dm,
-            badchannels,
-            backgroundrange,
+            backgroundrange=backgroundrange,
             bkg_method=bkg_method,
             bkg_extra=bkg_extra,
         )
@@ -411,7 +412,7 @@ class Burst:
     def calc_intensity(
         self,
         dm: float,
-        badchan: set | list | np.ndarray | None = None,
+        badchannels: set | list | np.ndarray | None = None,
         datarange: tuple[float, float] | None = None,
         bkg_extra: bool = False,
     ):
@@ -420,10 +421,13 @@ class Burst:
         It will optionally correct for bad channels, bandpass and
         dispersion, if the relevant keyword argument is given.
 
+        .. deprecated::
+            use `create_dynspectrum` instead.
+
         Parameters
         ----------
 
-        badchan : set, list or array of channel indices to flag. The default of None
+        badchannels : set, list or array of channel indices to flag. The default of None
             means no flagging is done.
 
         datarange : two-tuple of floating point fractions between 0 and 1
@@ -463,7 +467,7 @@ class Burst:
             dm = {"dm": dm, "freq": self.freqs, "tsamp": self.header["tsamp"]}
 
         intensity = core.calc_intensity(
-            data, dm, badchan, datarange, bkg_extra=bkg_extra
+            data, dm, badchannels, datarange, bkg_extra=bkg_extra
         )
 
         return intensity
@@ -476,14 +480,14 @@ class Burst:
         bkg_method: str = "median",
         bkg_extra: bool = False,
     ):
-        if dm:
-            dm = {"dm": dm, "freq": self.freqs, "tsamp": self.header["tsamp"]}
+        data = core.flag(self.data, badchannels)
 
-        lightcurve = core.calc_lightcurve(
-            self.data,
+        lightcurve, _ = core.calc_lightcurve(
+            data,
+            self.freqs,
+            self.header["tsamp"],
             dm,
-            badchannels,
-            backgroundrange,
+            backgroundrange=backgroundrange,
             bkg_method=bkg_method,
             bkg_extra=bkg_extra,
         )
@@ -492,20 +496,21 @@ class Burst:
 
     def bowtie(
         self,
-        dm: FInterval,
+        dminterval: FInterval,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
         bkg_method: str = "median",
         ndm: int = 50,
         reffreq: float | None = None,
     ) -> np.ndarray:
+        data = core.flag(self.data, badchannels)
+
         return core.bowtie(
-            self.data,
-            dm,
+            data,
             self.freqs,
             self.header["tsamp"],
-            badchannels,
-            backgroundrange,
+            dminterval,
+            backgroundrange=backgroundrange,
             bkg_method=bkg_method,
             ndm=ndm,
             reffreq=reffreq,
@@ -513,31 +518,41 @@ class Burst:
 
     def signal2noise(
         self,
-        dms: np.ndarray,
+        dminterval: FInterval,
         reffreq: float | None = None,
+        ndm: int = 50,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
         bkg_method: str = "median",
         background: tuple[float | dict, float | dict] = None,
         peak: bool = True,
-        peak_interval: FInterval | None = None,
     ):
+        data = core.flag(self.data, badchannels)
+
         ratios = core.signal2noise(
-            self.data,
-            dms=dms,
-            freqs=self.freqs,
-            dtsamp=self.header["tsamp"],
+            data,
+            self.freqs,
+            self.header["tsamp"],
+            dminterval,
             reffreq=reffreq,
-            badchannels=badchannels,
+            ndm=ndm,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
             background=background,
             peak=peak,
-            peak_interval=peak_interval,
         )
 
         return ratios
 
 
 def openfile(name: Path | str):
+    """Helper method that returns an open file
+
+    Can be use with a context manager:
+
+        with openfile(path) as burst:
+            ...
+
+    """
+
     return Burst.fromfile(name)
