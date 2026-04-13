@@ -378,7 +378,8 @@ def test_dedisperse():
     assert_allclose(result, expected)
 
     with pytest.raises(
-        ValueError, match="`freqs` length does not match the last axis of `data`"
+        ValueError,
+        match="`freqs` length does not match the last axis of the data array",
     ):
         freqs = np.arange(1200, 1000, -20)
         core.dedisperse(data, freqs, tsamp=1, dm=100)
@@ -439,14 +440,13 @@ def test_create_dynspectrum():
     )
     assert_allclose(idata, expected, rtol=1e-6)
 
-    with pytest.raises(
-        ValueError, match="'xx' and 'yy' channels do no match in dimensions"
-    ):
+    with pytest.raises(ValueError, match="dict values are inconsistent in shape"):
         data["yy"] = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]]) / 2
         core.create_dynspectrum(data, freqs, tsamp=1, dm=0, backgroundrange=None)
     data["yy"] = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]) / 2
     with pytest.raises(
-        ValueError, match="`freqs` length does not match the last axis of `data`"
+        ValueError,
+        match="`freqs` length does not match the last axis of the data array",
     ):
         freqs = np.array([1000, 1100, 1200, 1300])
         core.create_dynspectrum(data, freqs, tsamp=1, dm=0, backgroundrange=None)
@@ -566,3 +566,118 @@ def test_fit_ratios():
     assert ampl == pytest.approx(2.8402246050285)
     assert mean == pytest.approx(10.0)
     assert stddev == pytest.approx(1.3304348)
+
+
+def test_format_data():
+    data = {"xx": np.ones((5, 3)), "yy": np.ones((5, 3))}
+    result = core._format_data(data)
+    assert result[0].shape == (5, 2, 3)
+    assert result[1] == "xy"
+
+    data = {"i": np.ones((5, 3))}
+    result = core._format_data(data)
+    assert result[0].shape == (5, 1, 3)
+    assert result[1] == "i"
+
+    data = {
+        "i": np.ones((5, 3)),
+        "q": np.ones((5, 3)),
+        "u": np.ones((5, 3)),
+        "v": np.ones((5, 3)),
+    }
+    result = core._format_data(data)
+    assert result[0].shape == (5, 4, 3)
+    assert result[1] == "iquv"
+
+    data = np.ones((5, 3))
+    # Implicit poltype
+    result = core._format_data(data)
+    assert result[0].shape == (5, 1, 3)
+    assert result[1] == "i"
+    # Explicit poltype
+    result = core._format_data(data, poltype="i")
+    assert result[0].shape == (5, 1, 3)
+    assert result[1] == "i"
+
+    data = np.ones((5, 2, 3))
+    # Implicit poltype
+    result = core._format_data(data)
+    assert result[0].shape == (5, 2, 3)
+    assert result[1] == "xy"
+    # Explicit poltype
+    result = core._format_data(data, poltype="xy")
+    assert result[0].shape == (5, 2, 3)
+    assert result[1] == "xy"
+
+    data = np.ones((5, 3, 3))
+    # Implicit poltype
+    result = core._format_data(data)
+    assert result[0].shape == (5, 3, 3)
+    assert result[1] == "iqu"
+    # Explicit poltype
+    result = core._format_data(data, poltype="iqu")
+    assert result[0].shape == (5, 3, 3)
+    assert result[1] == "iqu"
+
+    data = np.ones((5, 4, 3))
+    # Implicit poltype
+    result = core._format_data(data)
+    assert result[0].shape == (5, 4, 3)
+    assert result[1] == "iquv"
+    # Explicit poltype
+    result = core._format_data(data, poltype="iquv")
+    assert result[0].shape == (5, 4, 3)
+    assert result[1] == "iquv"
+
+    data = {"xx": np.ones((5, 3)), "bb": np.ones((5, 3))}
+    with pytest.raises(ValueError, match="missing 'yy' key to match 'xx'"):
+        core._format_data(data)
+
+    data = {"i": np.ones((5, 3)), "q": np.ones((5, 3))}
+    with pytest.raises(
+        ValueError, match="`poltype` does not match the input dict keys"
+    ):
+        core._format_data(data, poltype="iqu")
+
+    data = {"i": np.ones((5, 3)), "q": np.ones((6, 3))}
+    with pytest.raises(ValueError, match="dict values are inconsistent in shape"):
+        core._format_data(data)
+
+    data = {"i": np.ones((5, 3)), "q": np.ones((5, 1, 3))}
+    with pytest.raises(ValueError, match="dict value is not two-dimensional"):
+        core._format_data(data)
+
+    data = np.ones((5, 4, 3))
+    with pytest.raises(
+        ValueError,
+        match="polarization type does not match the number of polarization channels",
+    ):
+        core._format_data(data, poltype="xy")
+
+    with pytest.raises(ValueError, match="invalid polarization type"):
+        core._format_data(data, poltype="xxyy")
+
+    data = {"i": 5}
+    with pytest.raises(ValueError, match="dict value is not an array"):
+        core._format_data(data)
+
+    data = 5
+    with pytest.raises(ValueError, match="data is not an array"):
+        core._format_data(5)
+
+    data = np.ones((5, 2, 1, 3))
+    with pytest.raises(ValueError, match="data is not two- or three-dimensional"):
+        core._format_data(data)
+
+    data = np.ones((5, 5, 3))
+    with pytest.raises(ValueError, match="incorrect number of polarization channels"):
+        core._format_data(data)
+
+    data = np.ones((5, 3))
+    result = core._format_data(data, poltype="i")
+    assert result[0].shape == (5, 1, 3)
+    assert result[1] == "i"
+    with pytest.raises(
+        ValueError, match="incorrect polarization type for two-dimensional data"
+    ):
+        result = core._format_data(data, poltype="iq")

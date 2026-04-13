@@ -67,11 +67,15 @@ __all__ = [
     "bowtie",
     "calc_background",
     "calc_intensity",
+    "calc_lightcurve",
+    "calc_lightcurve_from_waterfall",
     "create_dynspectrum",
     "dedisperse",
     "downsample",
     "findpeaklc",
     "findrangelc",
+    "fit_ratios",
+    "flag",
     "signal2noise",
     "upsample",
 ]
@@ -82,6 +86,157 @@ type array = np.ndarray | np.ma.MaskedArray
 
 
 logger = logging.getLogger(__package__)
+
+
+def _format_data(
+    data: array | dict[str, array], poltype: str = ""
+) -> tuple[array, str]:
+    """Format input data to into a consistent 3d array
+
+    This function takes the input data and reformats it into a
+    consistent three-dimensional array. This output array may have a
+    dimension of 1 for the second axis, the polarization channel axis,
+    in case the input was simply two-dimensional (or three-dimensional
+    with a dimension 1 second axis).
+
+    `poltype` sets the polarization type and can be "iquv", "xy" or
+    "ab", but in most cases is deduced from the input (if left at its
+    default of an empty string). If the deduced polarization type does
+    not match the `poltype` argument, a `ValueError` is raised.
+
+    The input can be a two-dimensional array, a three-dimensional
+    array or a dict of various polarization channels: each dict value
+    is a two-dimensional array for that specific channel. The keys
+    indicate the polarization type of the input, and can be matching
+    keys "i", "q", "u", "v", "xx", "yy", "aa", "bb"; all format
+    strings and keys are case independent. There is a minimal check
+    that if "xx" is present, "yy" should be present (and vice versa),
+    and the same for "aa" and "bb"; for "q", "u" and "v", there should
+    at least be a "i" key present as well. From the keys, the
+    polarization type is deduced, and if `poltype` is not empty, a
+    check is made to see if this matches.
+
+    If the input is three-dimensional array, the deduced polarization
+    type depends on the size of the polarization channel dimension
+    (the second, center, axis): if it's 1, Stokes I is assumed; if 4,
+    Stokes I, Q, U and V is assumed; if 2, `poltype` should be one of
+    "xy" or "ab" to give the polarization type.
+
+    Returns
+    -------
+        A tuple of a three-dimensional array and a string:
+        - The three-dimensional array matches the input data, and its
+          dimensions are (samples/time, polarization,
+          channel/frequency)
+        - the string describes the (deduced) polarization type
+
+    Raises
+    ------
+    ValueError
+        - in case the deduced format (from the polarization channel
+          dimension or the dict keys) does not match the given
+          `poltype` (if not empty).
+        - in case of a missing key (e.g., "yy" missing when "xx" given)
+        - in case of incompatible keys (e.g., "xx" and "bb")
+        - for a dict input: when any value array is not two-dimensional
+        - for a dict input: when the value arrays are not the same shape
+
+    """
+
+    # List of valid `poltype`s and their matching dict keys
+    polkeys = {
+        "xy": ("xx", "yy"),
+        "ab": ("aa", "bb"),
+        "i": ("i",),
+        "iquv": ("i", "q", "u", "v"),
+        "iq": ("i", "q"),
+        "iu": ("i", "u"),
+        "iv": ("i", "v"),
+        "iqu": ("i", "q", "u"),
+    }
+
+    poltype = poltype.lower()
+    if poltype and poltype not in polkeys:
+        raise ValueError("invalid polarization type")
+
+    if isinstance(data, dict):
+        keys = [key.lower() for key in data.keys()]
+        pairs = [
+            ("xx", "yy"),
+            ("yy", "xx"),
+            ("aa", "bb"),
+            ("bb", "aa"),
+            ("q", "i"),
+            ("u", "i"),
+            ("v", "i"),
+        ]
+        for key1, key2 in pairs:
+            if key1 in keys:
+                if key2 not in keys:
+                    raise ValueError(f"missing '{key2}' key to match '{key1}'")
+        if poltype:  # validate polarization type
+            if set(polkeys[poltype]) != keys:
+                raise ValueError("`poltype` does not match the input dict keys")
+        shape = None
+        for arr in data.values():
+            if not isinstance(arr, (np.ndarray, np.ma.MaskedArray)):
+                raise ValueError("dict value is not an array")
+            if arr.ndim != 2:
+                raise ValueError("dict value is not two-dimensional")
+            if not shape:
+                shape = arr.shape
+            elif arr.shape != shape:
+                raise ValueError("dict values are inconsistent in shape")
+
+        # reverse the dict, to reformat the data and set an output `poltype`
+        inv = {value: key for key, value in polkeys.items()}
+        # Note: polarization names are conveniently in alphabetical order
+        skeys = tuple(sorted(keys))
+        poltype = inv[skeys]
+        ndim = len(poltype)
+        shape = data[skeys[0]].shape
+        shape = (shape[0], ndim, shape[1])
+        # Can we avoid all the copying here?
+        fmtdata = np.empty(shape)
+        for i, key in enumerate(skeys):
+            fmtdata[:, i, :] = data[key][...]
+
+    else:
+        if not isinstance(data, (np.ndarray, np.ma.MaskedArray)):
+            raise ValueError("data is not an array")
+        if data.ndim not in (2, 3):
+            raise ValueError("data is not two- or three-dimensional")
+        shape = data.shape
+
+        if data.ndim == 3:
+            poldim = shape[1]
+            if poltype:
+                if len(poltype) != poldim:
+                    raise ValueError(
+                        "polarization type does not match the number "
+                        "of polarization channels"
+                    )
+            else:
+                # Deduce a default polarization type from the dimension
+                if poldim == 1:
+                    poltype = "i"
+                elif poldim == 2:  # to do: raise error as this is ambiguous?
+                    poltype = "xy"
+                elif poldim == 3:
+                    poltype = "iqu"
+                elif poldim == 4:
+                    poltype = "iquv"
+                else:
+                    raise ValueError("incorrect number of polarization channels")
+            fmtdata = data
+
+        else:  # two-dimensional data
+            if poltype and poltype != "i":
+                raise ValueError("incorrect polarization type for two-dimensional data")
+            fmtdata = data.reshape(shape[0], 1, shape[1])
+            poltype = "i"
+
+    return fmtdata, poltype
 
 
 def downsample(
@@ -669,7 +824,9 @@ def dedisperse(
     """
 
     if data.shape[-1] != len(freqs):
-        raise ValueError("`freqs` length does not match the last axis of `data`")
+        raise ValueError(
+            "`freqs` length does not match the last axis of the data array"
+        )
 
     # set up freq info
     freqs = freqs.astype(np.float64)
@@ -874,6 +1031,8 @@ def calc_intensity(
     return intensity, (bkg_mean, bkg_std)
 
 
+# To do: generalize to any (valid) number of
+# polarization channels
 def _create_dynspectra(
     data: array | dict[str, array],
     freqs: np.ndarray,
@@ -892,25 +1051,23 @@ def _create_dynspectra(
 
     """
 
-    xx = yy = None
-    if isinstance(data, dict):
-        xx = data["xx"]
-        yy = data.get("yy")
-        if yy is not None:
-            if xx.shape != yy.shape:
-                raise ValueError("'xx' and 'yy' channels do no match in dimensions")
-    elif data.ndim == 2:
+    data, poltype = _format_data(data)
+
+    data = np.squeeze(data)
+
+    if data.ndim == 2:
         xx = np.ma.array(data)
         yy = None
-    elif data.ndim != 3:
-        raise ValueError("data has incorrect number of dimensions")
-    elif data.shape[1] == 1:
-        xx = np.ma.array(np.squeeze(data))
-    elif data.shape[1] not in [2, 4]:
+    elif data.shape[1] != 2:
         raise ValueError("second (polarization) dimension has incorrect size")
     else:
         xx = np.ma.array(data[:, 0, :])
         yy = np.ma.array(data[:, 1, :])
+
+    if len(freqs) != xx.shape[-1]:
+        raise ValueError(
+            "`freqs` length does not match the last axis of the data array"
+        )
 
     if dm:
         if reffreq is None:
@@ -1075,13 +1232,13 @@ def create_dynspectrum(
 
     """
 
-    if isinstance(data, dict):
-        if "xx" not in data:
-            raise ValueError("missing 'xx' key in data dict")
-        if data["xx"].shape[-1] != len(freqs):
-            raise ValueError("`freqs` length does not match the last axis of `data`")
-    elif data.shape[-1] != len(freqs):
-        raise ValueError("`freqs` length does not match the last axis of `data`")
+    ##% if isinstance(data, dict):
+    ##%     if "xx" not in data:
+    ##%         raise ValueError("missing 'xx' key in data dict")
+    ##%     if data["xx"].shape[-1] != len(freqs):
+    ##%         raise ValueError("`freqs` length does not match the last axis of `data`")
+    ##% elif data.shape[-1] != len(freqs):
+    ##%     raise ValueError("`freqs` length does not match the last axis of `data`")
 
     if combine not in ("mean", "average", "sum"):
         raise ValueError('`combine` is not one of "mean", "average" or "sum"')
@@ -1288,7 +1445,9 @@ def bowtie(
     """
 
     if data.shape[-1] != len(freqs):
-        raise ValueError("`freqs` length does not match the last axis of `data`")
+        raise ValueError(
+            "`freqs` length does not match the last axis of the data array"
+        )
 
     dm_center = (dminterval[0] + dminterval[1]) / 2
 
@@ -1412,7 +1571,9 @@ def signal2noise(
     """
 
     if data.shape[-1] != len(freqs):
-        raise ValueError("`freqs` length does not match the last axis of `data`")
+        raise ValueError(
+            "`freqs` length does not match the last axis of the data array"
+        )
 
     dm_center = (dminterval[0] + dminterval[1]) / 2
 
