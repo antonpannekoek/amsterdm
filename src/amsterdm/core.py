@@ -622,8 +622,8 @@ def findrangelc(
 def calc_background(
     data: array,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    method: str | None = "median",
-) -> tuple[float, float]:
+    method: str | None = "mean",
+) -> tuple[array, array]:
     """Return background and its standard deviation for each channel
 
     Assumes any dispersion correction has already been done, so that
@@ -650,7 +650,7 @@ def calc_background(
 
         If None, uses the full range for the background calculation.
 
-    method : str, default="median"
+    method : str, default="mean"
         method to estimate the background level for each channel.
 
         Note that "mode" is not very applicable for continuously distributed
@@ -662,8 +662,8 @@ def calc_background(
 
     Returns
     -------
-    Tuple of 2 floats
-        The background value and standard deviation are returned
+    Tuple of 2 arrays
+        The background value  and standard deviation across all frequency channels
 
     Raises
     ------
@@ -709,7 +709,6 @@ def calc_background(
             mean[i] = 0.5 * (bin_edges[max_bin] + bin_edges[max_bin + 1])
     else:  # we shouldn't be able to get here
         raise ValueError("method should be one of 'mean', 'median' or 'mode'")
-
     std = np.ma.std(bkg, axis=0)
 
     if not isinstance(data, np.ma.MaskedArray):
@@ -723,7 +722,7 @@ def calc_background(
 def correct_bandpass(
     data: array,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    method: str = "median",
+    method: str = "mean",
 ) -> array | tuple[array, array, array]:
     """Correct for the individual channel bandpasses in a given data array
 
@@ -755,7 +754,7 @@ def correct_bandpass(
         is calculated (using the median or mean value over the
         combined area).
 
-    method : str, default="median"
+    method : str, default="mean"
         method to estimate the background level for each channel.
 
         Note that "mode" is not very applicable for continuously distributed
@@ -784,7 +783,7 @@ def dedisperse(
     dm: float,
     reffreq: float | None = None,
     dmconst: float = DMCONST,
-) -> np.ndarray:
+) -> array:
     """Dedisperse a two-dimensional data set
 
     Dedispersion is done using `numpy.roll` for the individual "rows",
@@ -1040,7 +1039,7 @@ def _create_dynspectra(
     dm: float | None,
     reffreq: float | None = None,
     backgroundrange: FInterval | tuple[FInterval] | None = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str | None = "median",
+    bkg_method: str | None = "mean",
     background: tuple[float | dict, float | dict] | None = None,
 ) -> dict[str, tuple[array, float, float]]:
     """Create a dynamical spectrum for each polarization channel
@@ -1138,7 +1137,7 @@ def create_dynspectrum(
     dm: float | None,
     reffreq: float | None = None,
     backgroundrange: FInterval | tuple[FInterval] | None = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str | None = "median",
+    bkg_method: str | None = "mean",
     background: tuple[float | dict, float | dict] | None = None,
     combine: str = "mean",
 ) -> tuple[array, tuple[float, float]]:
@@ -1273,7 +1272,7 @@ def calc_lightcurve(
     dm: float | None,
     reffreq: float | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str = "median",
+    bkg_method: str = "mean",
     background: tuple[float | dict, float | dict] | None = None,
 ) -> tuple[np.ndarray, tuple[float, float]]:
     """Calculate the light curve by summing across channels, after
@@ -1386,7 +1385,7 @@ def bowtie(
     tsamp: float,
     dminterval: FInterval,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str = "median",
+    bkg_method: str = "mean",
     ndm: int = 50,
     reffreq: float | None = None,
 ) -> np.ndarray:
@@ -1485,13 +1484,14 @@ def signal2noise(
     freqs: np.ndarray,
     tsamp: float,
     dminterval: FInterval,
+    dm: float | None = None,
     reffreq: float | None = None,
     ndm: int = 50,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str = "median",
+    bkg_method: str = "mean",
     background: tuple[float | dict, float | dict] = None,
     peak: bool = True,
-) -> tuple[float, float]:
+) -> tuple[array, array]:
     """Calculate peak signal to noise values over a range of DM
 
     This calculates the light curve (dynamical spectrum summed across
@@ -1517,6 +1517,15 @@ def signal2noise(
         used in the calculation of the background: the data is
         dedispersed to this mean DM and the background is calculated,
         which is used for the bandpass correction.
+
+        If `dm` is given, however, this is used as the zeropoint of
+        the dispersion measure instead.
+
+    dm : float, optional
+
+        An optional specific dispersion measure to use in the
+        background calculation and bandpass correction; if not given,
+        taken from the mid of `dminterval`.
 
     reffreq: float or None
 
@@ -1575,7 +1584,10 @@ def signal2noise(
             "`freqs` length does not match the last axis of the data array"
         )
 
-    dm_center = (dminterval[0] + dminterval[1]) / 2
+    if dm is None:
+        dm_center = (dminterval[0] + dminterval[1]) / 2
+    else:
+        dm_center = dm
 
     spectra = _create_dynspectra(
         data, freqs, tsamp, dm_center, reffreq, backgroundrange, bkg_method
@@ -1587,11 +1599,12 @@ def signal2noise(
     nsamp = len(lightcurve)
     # Calculate the background of the light curve
     # using the `backgroundrange`
-    for bkgrange in backgroundrange:
-        low = int(nsamp * bkgrange[0] + 0.5)
-        high = int(nsamp * bkgrange[1] + 0.5)
-        idx_bkg.append(np.arange(low, high))
-    idx_bkg = np.concatenate(idx_bkg)
+    if backgroundrange:
+        for bkgrange in backgroundrange:
+            low = int(nsamp * bkgrange[0] + 0.5)
+            high = int(nsamp * bkgrange[1] + 0.5)
+            idx_bkg.append(np.arange(low, high))
+        idx_bkg = np.concatenate(idx_bkg)
     lcstd = lightcurve[idx_bkg].std()
 
     # dms is relative to the mean DM

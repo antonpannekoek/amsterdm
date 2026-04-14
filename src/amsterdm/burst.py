@@ -3,14 +3,22 @@ from functools import cached_property
 import logging
 from io import BufferedIOBase
 from pathlib import Path, PurePath
+from types import EllipsisType
+import warnings
 
 import numpy as np
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 from . import core
+from . import plot
 from .constants import DEFAULT_BACKGROUND_RANGE, SOD
 from .io import read_fileformat, read_filterbank, read_fits, read_psrfits, read_hdf5
 from .utils import FInterval
 
+
+# Type alias
+type array = np.ndarray | np.ma.MaskedArray
 
 logger = logging.getLogger(__package__)
 
@@ -44,11 +52,14 @@ class Burst:
 
         return cls(header, data, fobj)
 
-    def __init__(self, header, data, file=None, copy=False):
+    def __init__(self, header, data, dm=None, file=None, copy=False):
         self.header = header.copy()
         self.data = data.copy() if copy else data
+        self.dm = dm
         # copy=False only works if `self.data` is already a MaskedArray
         self.data = np.ma.masked_invalid(self.data, copy=False)
+        self._data = None
+        self._dedispersed = None
         self._file = file
         if file:
             self.path = Path(self._file.name)
@@ -58,6 +69,7 @@ class Burst:
         self.badchannels = []
 
         self._fix_missing()
+        self.tsamp = self.header["tsamp"]
 
         self._flag_channels()
 
@@ -218,7 +230,7 @@ class Burst:
         is not touched.
 
         This action is non-reversible, except by recreating the Burst
-        instance.
+        instance from the original data file.
 
         Parameters
         ----------
@@ -313,13 +325,83 @@ class Burst:
         with suppress(AttributeError):
             del self.reltimes
 
-    def create_dynspectrum(
+    def flag(self, badchannels: set | list | np.ndarray | None = None):
+        """Flag bad channels
+
+        All given channels, corresponding to the array indices of the
+        frequency axis, are masked along the time samples. This is
+        done by using a NumPy masked array.
+
+        The data is modified internally. The mask, however, is easily
+        reverted or turned off completely
+
+        This operation may turn the data into a MaskedArray, if it
+        wasn't already a MaskedArray.
+
+        If `badchannels` is empty or None, no operation is performed.
+
+        """
+
+        if badchannels:
+            self.data = core.flag(self.data, badchannels)
+
+    def dedisperse(self, dm: float | None):
+        """Dedisperse the data for a given `dm`
+
+        The data is internally dedispersed
+
+        To prevent data from being dedispersed multiple data, a
+        private copy of the original data is kept, and a flag is
+        set. Any future dedispersion will be applied to the copy
+
+        """
+
+        if dm:
+            if self._data is not None:
+                data = self._data.copy()
+            else:
+                self._data = self.data.copy()
+                data = self.data
+            self.data = core.dedisperse(data, self.freqs, self.tsamp, dm)
+            self._dedispersed = dm
+
+    def calc_background(
         self,
-        dm: float,
+        dm: float | None = None,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-        bkg_method: str = "median",
-        bkg_extra: bool = False,
+        method: str = "mean",
+    ) -> tuple[array, array]:
+        """Return background and its standard deviation for each channel
+
+        This will flag the data if `badchannels` is given
+
+        This will also dedisperses the data (which is intrinsic, so
+        the data will be altered), unless `dm` is 0 or None.
+
+        For details, see `core.calc_background`
+
+        Returns
+        -------
+        Tuple of 2 arrays
+            The background value and standard deviation across all frequency channels
+
+        """
+
+        self.flag(badchannels)
+        if dm:
+            self.dedisperse(dm)
+
+        return core.calc_background(
+            self.data, backgroundrange=backgroundrange, method=method
+        )
+
+    def dynspectrum(
+        self,
+        dm: float | None = None,
+        badchannels: set | list | np.ndarray | None = None,
+        backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+        bkg_method: str = "mean",
         background: tuple[float | dict, float | dict] | None = None,
     ):
         """Returns a dynamical spectrum for a given dispersion measure
@@ -338,13 +420,15 @@ class Burst:
         Parameters
         ----------
 
-        dm : float
+        dm : float, optional
 
             Disperson measure
 
-            Dedisperse the data for the given value. The default value of
-            None means no dedispersion is applied.
+            Dedisperse the data for the given value.
 
+            If set to None, the default value, the internal `dm`
+            attribute of the burst is used. If this is also None, a
+            warning is issued and no dedispersion is applied.
 
         badchannels : set | list | np.ndarray | None, default=None
             means no flagging is done.
@@ -376,15 +460,12 @@ class Burst:
 
 
         If the `background` argument is given, `backgroundrange` and
-        `bkg_method` are ignored. If `bkg_extra` is also set, the returned
-        values identical to the given values.
+        `bkg_method` are ignored.
 
         Returns
         -------
-
-            Two-dimensional array with the Stokes intensity parameter. If
-            ``bkg_extra`` is ``True``, returns a two-tuple of (two-dimensional
-            array, bkg_info dict).
+            The dynamical spectrum: a two-dimensional array with the
+            Stokes intensity parameter
 
         """
 
@@ -397,6 +478,11 @@ class Burst:
 
         data = core.flag(data, badchannels)
 
+        if dm is None:
+            dm = self.dm
+            if dm is None:
+                warnings.warn("No `dm` supplied and no default dm available")
+
         dynspec, _ = core.create_dynspectrum(
             data,
             self.freqs,
@@ -404,14 +490,13 @@ class Burst:
             dm,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
-            bkg_extra=bkg_extra,
         )
 
         return dynspec
 
     def calc_intensity(
         self,
-        dm: float,
+        dm: float | None = None,
         badchannels: set | list | np.ndarray | None = None,
         datarange: tuple[float, float] | None = None,
         bkg_extra: bool = False,
@@ -438,12 +523,15 @@ class Burst:
 
             The default of None indicates no bandpass correction is applied.
 
-        dm : float
+        dm : float, optional
 
             Disperson measure
 
-            Dedisperse the data for the given value. The default value of
-            None means no dedispersion is applied.
+            Dedisperse the data for the given value.
+
+            If set to None, the default value, the internal `dm`
+            attribute of the burst is used. If this is also None, a
+            warning is issued and no dedispersion is applied.
 
         bkg_extra: bool, default False
 
@@ -463,6 +551,11 @@ class Burst:
 
         data = dict(xx=self.data[:, 0, :], yy=self.data[:, 1, :])
 
+        if dm is None:
+            dm = self.dm
+            if dm is None:
+                warnings.warn("No `dm` supplied and no default dm available")
+
         if dm:
             dm = {"dm": dm, "freq": self.freqs, "tsamp": self.header["tsamp"]}
 
@@ -477,10 +570,14 @@ class Burst:
         dm: float | None = None,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-        bkg_method: str = "median",
-        bkg_extra: bool = False,
+        bkg_method: str = "mean",
     ):
         data = core.flag(self.data, badchannels)
+
+        if dm is None:
+            dm = self.dm
+            if dm is None:
+                warnings.warn("No `dm` supplied and no default dm available")
 
         lightcurve, _ = core.calc_lightcurve(
             data,
@@ -489,7 +586,6 @@ class Burst:
             dm,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
-            bkg_extra=bkg_extra,
         )
 
         return lightcurve
@@ -499,7 +595,7 @@ class Burst:
         dminterval: FInterval,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-        bkg_method: str = "median",
+        bkg_method: str = "mean",
         ndm: int = 50,
         reffreq: float | None = None,
     ) -> np.ndarray:
@@ -519,21 +615,23 @@ class Burst:
     def signal2noise(
         self,
         dminterval: FInterval,
+        dm: float | None = None,
         reffreq: float | None = None,
         ndm: int = 50,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-        bkg_method: str = "median",
+        bkg_method: str = "mean",
         background: tuple[float | dict, float | dict] = None,
         peak: bool = True,
-    ):
+    ) -> tuple[array, array]:
         data = core.flag(self.data, badchannels)
 
-        ratios = core.signal2noise(
+        dms, ratios = core.signal2noise(
             data,
             self.freqs,
-            self.header["tsamp"],
+            self.tsamp,
             dminterval,
+            dm=dm,
             reffreq=reffreq,
             ndm=ndm,
             backgroundrange=backgroundrange,
@@ -542,7 +640,299 @@ class Burst:
             peak=peak,
         )
 
-        return ratios
+        return dms, ratios
+
+    def waterfall(
+        self,
+        dm: float | None = None,
+        badchannels: set | list | np.ndarray | None = None,
+        backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+        bkg_method: str = "mean",
+        ax: Axes | None = None,
+        **options,
+    ) -> tuple[Figure, Axes]:
+        """Return a waterfall plot for the burst
+
+        Parameters
+        ----------
+
+        See `plot.waterfall` for a description of most parameters.
+
+        dm : float, optional
+
+            Disperson measure
+
+            Dedisperse the data for the given value.
+
+            If set to None, the default value, the internal `dm`
+            attribute of the burst is used. If this is also None, a
+            warning is issued and no dedispersion is applied.
+
+
+        Returns
+        -------
+        A tuple of [Figure, Axes]
+
+        """
+
+        if dm is None:
+            dm = self.dm
+            if dm is None:
+                warnings.warn("No `dm` supplied and no default dm available")
+                dm = 0
+
+        return plot.waterfall(
+            burst=self,
+            dm=dm,
+            badchannels=badchannels,
+            backgroundrange=backgroundrange,
+            bkg_method=bkg_method,
+            ax=ax,
+            **options,
+        )
+
+    def lcplot(
+        self,
+        dm: float | None = None,
+        badchannels: set | list | np.ndarray | None = None,
+        backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+        bkg_method: str = "mean",
+        ax: Axes | None = None,
+        **options,
+    ) -> tuple[Figure, Axes]:
+        """Return a light curve plot for the burst
+
+        Parameters
+        ----------
+
+        See `plot.lightcurve` for a description of most parameters.
+
+        dm : float, optional
+
+            Disperson measure
+
+            Dedisperse the data for the given value.
+
+            If set to None, the default value, the internal `dm`
+            attribute of the burst is used. If this is also None, a
+            warning is issued and no dedispersion is applied.
+
+
+        Returns
+        -------
+        A tuple of [Figure, Axes]
+
+        """
+
+        if dm is None:
+            dm = self.dm
+            if dm is None:
+                warnings.warn("No `dm` supplied and no default dm available")
+                dm = 0
+
+        return plot.lightcurve(
+            burst=self,
+            dm=dm,
+            badchannels=badchannels,
+            backgroundrange=backgroundrange,
+            bkg_method=bkg_method,
+            ax=ax,
+            **options,
+        )
+
+    def bgplot(
+        self,
+        dm: float | None = None,
+        badchannels: set | list | np.ndarray | None = None,
+        backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+        bkg_method: str = "mean",
+        ax: Axes | None = None,
+        **options,
+    ) -> tuple[Figure, Axes]:
+        """Return a background plot for the burst
+
+        This will plot the background, averaged over backgroundrange
+        in the sample dimension. It will plot both the background and
+        its standard deviation.
+
+        Parameters
+        ----------
+
+        See `plot.background` for a description of most parameters.
+
+        dm : float, optional
+
+            Disperson measure
+
+            Dedisperse the data for the given value.
+
+            If set to None, the default value, the internal `dm`
+            attribute of the burst is used. If this is also None, a
+            warning is issued and no dedispersion is applied.
+
+
+        Returns
+        -------
+        A tuple of [Figure, Axes]
+
+        """
+
+        if dm is None:
+            dm = self.dm
+            if dm is None:
+                warnings.warn("No `dm` supplied and no default dm available")
+                dm = 0
+
+        return plot.background(
+            burst=self,
+            dm=dm,
+            badchannels=badchannels,
+            backgroundrange=backgroundrange,
+            bkg_method=bkg_method,
+            ax=ax,
+            **options,
+        )
+
+    def bowtieplot(
+        self,
+        dminterval: FInterval,
+        badchannels: set | list | np.ndarray | None = None,
+        backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+        bkg_method: str = "mean",
+        ndm: int = 50,
+        reffreq: float | None = None,
+        trange: slice | EllipsisType = Ellipsis,
+        ax: Axes | None = None,
+        **options,
+    ) -> tuple[Figure, Axes]:
+        """Return a bowtie plot for the burst
+
+        Parameters
+        ----------
+
+        See `plot.bowtie` for a description of most parameters.
+
+        Returns
+        -------
+        A tuple of [Figure, Axes]
+
+        """
+
+        return plot.bowtie(
+            self,
+            dminterval=dminterval,
+            badchannels=badchannels,
+            backgroundrange=backgroundrange,
+            bkg_method=bkg_method,
+            ndm=ndm,
+            reffreq=reffreq,
+            trange=trange,
+            ax=ax,
+            **options,
+        )
+
+    def s2nplot(
+        self,
+        dminterval: FInterval,
+        dm: float | None = None,
+        reffreq: float | None = None,
+        ndm: int = 50,
+        badchannels: set | list | np.ndarray | None = None,
+        backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+        bkg_method: str = "mean",
+        peak: bool = True,
+        fit: bool = False,
+        ax: Axes | None = None,
+        **options,
+    ) -> tuple[Figure, Axes]:
+        """Return a signal-to-noise plot for the burst
+
+        Parameters
+        ----------
+
+        See `plot.signal2noise` for a description of most parameters.
+
+        Returns
+        -------
+        A tuple of [Figure, Axes]
+
+        """
+
+        return plot.signal2noise(
+            self,
+            dminterval=dminterval,
+            dm=dm,
+            reffreq=reffreq,
+            ndm=ndm,
+            badchannels=badchannels,
+            backgroundrange=backgroundrange,
+            bkg_method=bkg_method,
+            peak=peak,
+            fit=fit,
+            ax=ax,
+            **options,
+        )
+
+    def dmplot(
+        self,
+        dminterval: FInterval,
+        dm: float | None = None,
+        reffreq: float | None = None,
+        ndm: int = 50,
+        badchannels: set | list | np.ndarray | None = None,
+        backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
+        bkg_method: str = "mean",
+        peak: bool = True,
+        dm_coherent: float = 0,
+        ax: Axes | None = None,
+        **options,
+    ) -> tuple[Figure, Axes]:
+        """Plot a combination of a waterfall plot, a light curve and background
+
+        Parameters
+        ----------
+
+        See `plot.grid` for a description of most parameters.
+
+        dm : float, optional
+
+            Disperson measure
+
+            Plot the data at the given dedispersion.
+
+            If set to None, the default value, the internal `dm`
+            attribute of the burst is used. If this is also None, a
+            warning is issued and no dedispersion is applied.
+
+            `dminterval` is used for the signal-to-noise plot, while
+            `dm_coherent` is used to calculate the smearing.
+
+        Returns
+        -------
+        A tuple of [Figure, Axes]
+
+        """
+
+        if dm is None:
+            dm = self.dm
+            if dm is None:
+                warnings.warn("No `dm` supplied and no default dm available")
+                dm = 0
+
+        return plot.grid(
+            self,
+            dm=dm,
+            dminterval=dminterval,
+            reffreq=reffreq,
+            ndm=ndm,
+            badchannels=badchannels,
+            backgroundrange=backgroundrange,
+            bkg_method=bkg_method,
+            peak=peak,
+            dm_coherent=dm_coherent,
+            ax=ax,
+            **options,
+        )
 
 
 def openfile(name: Path | str):

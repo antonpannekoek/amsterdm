@@ -305,13 +305,18 @@ def test_calc_background():
 
     # Contrast with background calculated over the full range
     mean, std = core.calc_background(data, backgroundrange=[0, 1])
-    assert mean.mean() == approx(5.6275, abs=1e-5)
-    assert std.mean() == approx(2.67565, abs=1e-5)
-    mean, std = core.calc_background(data, backgroundrange=[0, 1], method="mean")
     assert mean.mean() == approx(5.976, abs=1e-5)
+    assert std.mean() == approx(2.67565, abs=1e-5)
+    mean, std = core.calc_background(data, backgroundrange=[0, 1], method="median")
+    assert mean.mean() == approx(5.6275, abs=1e-5)
     # Note how the standard deviation uses the mean, also for the
     # default "median" method
     assert std.mean() == approx(2.67565, abs=1e-5)
+
+    data = np.arange(20).reshape(5, 4)
+    mean, std = core.calc_background(data, backgroundrange=[0, 1])
+    assert_allclose(mean, [8.0, 9.0, 10.0, 11.0], strict=True)
+    assert_allclose(std, [5.65685425, 5.65685425, 5.65685425, 5.65685425], strict=True)
 
     with pytest.raises(
         ValueError, match="method should be one of 'mean', 'median', 'mode' or 'none'"
@@ -554,6 +559,12 @@ def test_signal2noise():
         [9.0, 9.0, 9.0, 9.0, 11.0, 8.33333333, 8.33333333, 8.33333333, 7.0]
     )
     # Second value is a list of signal-to-noise ratios
+    assert_allclose(result[1], expected)
+
+    # Set the zerpoint dm to be at the end of the interval
+    result = core.signal2noise(data, freqs, 1, dminterval, dm=11, ndm=9)
+    assert_allclose(result[0], np.linspace(9, 11, 9))
+    expected = np.array([3.0, 3.0, 3.0, 3.0, 5.0, 5.0, 5.0, 7.0, 7.0])
     assert_allclose(result[1], expected)
 
 
