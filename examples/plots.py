@@ -90,7 +90,7 @@ def main(
             logger.info("Creating waterfall plot")
             fig, ax = burst.waterfall(
                 dm,
-                badchannels,
+                badchannels=badchannels,
                 backgroundrange=background,
                 fillmask=np.ma.median,
             )
@@ -102,7 +102,7 @@ def main(
             logger.info("Creating bowtie plot")
             fig, ax = burst.bowtieplot(
                 (dm - 50, dm + 50),
-                badchannels,
+                badchannels=badchannels,
                 backgroundrange=background,
                 ndm=50,
             )
@@ -112,7 +112,9 @@ def main(
 
         if "all" in plots or "lightcurve" in plots or "lc" in plots:
             logger.info("Creating light curve plot")
-            fig, ax = burst.lcplot(dm, badchannels, backgroundrange=background)
+            fig, ax = burst.lcplot(
+                dm, badchannels=badchannels, backgroundrange=background
+            )
             if sections:
                 vlines = [item for interval in sections for item in interval]
                 ax.vlines(
@@ -130,7 +132,7 @@ def main(
         if "all" in plots or "background" in plots or "bg" in plots:
             logger.info("Creating background plot")
             fig, ax = burst.bgplot(
-                dm, badchannels, backgroundrange=background, method="mean"
+                dm, badchannels=badchannels, backgroundrange=background, method="mean"
             )
             ax.set_title(f"Background statistics of {path.stem}")
             outfile = pngfile.with_stem(path.stem + "-background")
@@ -232,7 +234,7 @@ def parse_args():
         type=float,
         default=DEFAULT_BACKGROUND_RANGE,
         action="append",
-        help="Set of start and end (time) fractions for the background estimate",
+        help="Set of start and end (sample) fractions for the background estimate",
     )
     parser.add_argument(
         "--s2n-range",

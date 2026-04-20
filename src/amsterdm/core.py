@@ -1069,8 +1069,6 @@ def _create_dynspectra(
         )
 
     if dm:
-        if reffreq is None:
-            reffreq = np.max(freqs)
         xx = dedisperse(xx, freqs, tsamp, dm, reffreq=reffreq)
         if yy is not None:
             yy = dedisperse(yy, freqs, tsamp, dm, reffreq=reffreq)
@@ -1231,14 +1229,6 @@ def create_dynspectrum(
 
     """
 
-    ##% if isinstance(data, dict):
-    ##%     if "xx" not in data:
-    ##%         raise ValueError("missing 'xx' key in data dict")
-    ##%     if data["xx"].shape[-1] != len(freqs):
-    ##%         raise ValueError("`freqs` length does not match the last axis of `data`")
-    ##% elif data.shape[-1] != len(freqs):
-    ##%     raise ValueError("`freqs` length does not match the last axis of `data`")
-
     if combine not in ("mean", "average", "sum"):
         raise ValueError('`combine` is not one of "mean", "average" or "sum"')
 
@@ -1384,10 +1374,10 @@ def bowtie(
     freqs: np.ndarray,
     tsamp: float,
     dminterval: FInterval,
+    reffreq: float | None = None,
+    ndm: int = 50,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "mean",
-    ndm: int = 50,
-    reffreq: float | None = None,
 ) -> np.ndarray:
     """Create the data for a bowtie plot: varying DM versus time/samples
 

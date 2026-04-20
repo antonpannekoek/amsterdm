@@ -69,7 +69,9 @@ class Burst:
         self.badchannels = []
 
         self._fix_missing()
-        self.tsamp = self.header["tsamp"]
+        self.tsamp = (
+            self.header["tsamp"] * 1000
+        )  # convert to milliseconds; leaving the header untouched
 
         self._flag_channels()
 
@@ -606,10 +608,10 @@ class Burst:
             self.freqs,
             self.header["tsamp"],
             dminterval,
+            reffreq=reffreq,
+            ndm=ndm,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
-            ndm=ndm,
-            reffreq=reffreq,
         )
 
     def signal2noise(
@@ -645,6 +647,7 @@ class Burst:
     def waterfall(
         self,
         dm: float | None = None,
+        reffreq: float | None = None,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
         bkg_method: str = "mean",
@@ -681,9 +684,19 @@ class Burst:
                 warnings.warn("No `dm` supplied and no default dm available")
                 dm = 0
 
+        if self.data.ndim == 3:
+            if self.data.shape[1] != 2:  # Assume Stokes IQUV
+                data = self.data[:, 0, :]
+            # else assume xx and yy
+        else:
+            data = self.data
+
         return plot.waterfall(
-            burst=self,
+            data,
+            self.freqs,
+            self.tsamp,
             dm=dm,
+            reffreq=reffreq,
             badchannels=badchannels,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
@@ -694,6 +707,7 @@ class Burst:
     def lcplot(
         self,
         dm: float | None = None,
+        reffreq: float | None = None,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
         bkg_method: str = "mean",
@@ -730,9 +744,19 @@ class Burst:
                 warnings.warn("No `dm` supplied and no default dm available")
                 dm = 0
 
+        if self.data.ndim == 3:
+            if self.data.shape[1] != 2:  # Assume Stokes IQUV
+                data = self.data[:, 0, :]
+            # else assume xx and yy
+        else:
+            data = self.data
+
         return plot.lightcurve(
-            burst=self,
+            data,
+            self.freqs,
+            self.tsamp,
             dm=dm,
+            reffreq=reffreq,
             badchannels=badchannels,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
@@ -743,6 +767,7 @@ class Burst:
     def bgplot(
         self,
         dm: float | None = None,
+        reffreq: float | None = None,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
         bkg_method: str = "mean",
@@ -784,8 +809,11 @@ class Burst:
                 dm = 0
 
         return plot.background(
-            burst=self,
+            self.data,
+            self.freqs,
+            self.tsamp,
             dm=dm,
+            reffreq=reffreq,
             badchannels=badchannels,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
@@ -796,11 +824,11 @@ class Burst:
     def bowtieplot(
         self,
         dminterval: FInterval,
+        reffreq: float | None = None,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
         bkg_method: str = "mean",
         ndm: int = 50,
-        reffreq: float | None = None,
         trange: slice | EllipsisType = Ellipsis,
         ax: Axes | None = None,
         **options,
@@ -818,14 +846,23 @@ class Burst:
 
         """
 
+        if self.data.ndim == 3:
+            if self.data.shape[1] != 2:  # Assume Stokes IQUV
+                data = self.data[:, 0, :]
+            # else assume xx and yy
+        else:
+            data = self.data
+
         return plot.bowtie(
-            self,
+            data,
+            self.freqs,
+            self.tsamp,
             dminterval=dminterval,
+            reffreq=reffreq,
             badchannels=badchannels,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
             ndm=ndm,
-            reffreq=reffreq,
             trange=trange,
             ax=ax,
             **options,
@@ -834,7 +871,6 @@ class Burst:
     def s2nplot(
         self,
         dminterval: FInterval,
-        dm: float | None = None,
         reffreq: float | None = None,
         ndm: int = 50,
         badchannels: set | list | np.ndarray | None = None,
@@ -858,10 +894,18 @@ class Burst:
 
         """
 
+        if self.data.ndim == 3:
+            if self.data.shape[1] != 2:  # Assume Stokes IQUV
+                data = self.data[:, 0, :]
+            # else assume xx and yy
+        else:
+            data = self.data
+
         return plot.signal2noise(
-            self,
+            data,
+            self.freqs,
+            self.tsamp,
             dminterval=dminterval,
-            dm=dm,
             reffreq=reffreq,
             ndm=ndm,
             badchannels=badchannels,
@@ -919,8 +963,12 @@ class Burst:
                 warnings.warn("No `dm` supplied and no default dm available")
                 dm = 0
 
+        data = self.data[:, 0, :] if self.data.ndim == 3 else self.data
+
         return plot.grid(
-            self,
+            data,
+            self.freqs,
+            self.tsamp,
             dm=dm,
             dminterval=dminterval,
             reffreq=reffreq,
@@ -930,6 +978,8 @@ class Burst:
             bkg_method=bkg_method,
             peak=peak,
             dm_coherent=dm_coherent,
+            foff=self.header["foff"],
+            cfreq=self.cfreq,
             ax=ax,
             **options,
         )
