@@ -69,10 +69,7 @@ class Burst:
         self.badchannels = []
 
         self._fix_missing()
-        self.tsamp = (
-            self.header["tsamp"] * 1000
-        )  # convert to milliseconds; leaving the header untouched
-
+        self._set_attrs()
         self._flag_channels()
 
     # Make the class a context manager to support the 'with' statement
@@ -85,7 +82,7 @@ class Burst:
     def _fix_missing(self):
         """Try and fix any missing keywords"""
         if "nchans" not in self.header:
-            logger.warning("'nchans' not found in header; determining from the data")
+            warnings.warn("'nchans' not found in header; determining from the data")
             self.header["nchans"] = self.data.shape[-1]
         if "fanchor" not in self.header:
             self.header["fanchor"] = "mid"
@@ -95,7 +92,7 @@ class Burst:
             elif "freqs" in self.header and isinstance(
                 self.header["freqs"], (list, np.ndarray)
             ):
-                logger.info("Determining 'fch1' key from frequencies")
+                logger.info("Determining 'fch1' key from frequency list")
                 self.header["fch1"] = self.header["freqs"][0]
             else:
                 logger.critical(
@@ -125,6 +122,26 @@ class Burst:
                     "'tsamp' or related keyword not found in header information"
                 )
 
+    def _set_attrs(self):
+        """Set essential attributes from the header information"""
+
+        # Time units in milliseconds
+        # Frequency units in MegaHertz
+
+        # sample time; time resolution.
+        self._tsamp = self.header["tsamp"] * 1000
+        # start time of observations
+        self._tstart = self.header.get("tstart", 0)
+        # frequency starting point, corresponding to channel 0
+        self._fch1 = self.header["fch1"]
+        # frequency interval; frequency resolution
+        self._foff = self.header["foff"]
+        # frequency anchor point: mid, bottom, top of channel
+        # top means the higher frequency, bottom is the lower frequency of the channel
+        self._fanchor = self.header["fanchor"]
+        # number of channels in the bad
+        self.nchans = self.header["nchans"]
+
     def _flag_channels(self):
         """Mask any invalid data, and set `self.badchannels` if a complete channel is masked"""
         if self.data.mask.any():
@@ -132,40 +149,94 @@ class Burst:
                 if self.data[..., i].mask.all():
                     self.badchannels.append(i)
 
+    # The following are properties, so that changing them will also change the
+    # `times`, `reltimes`, `freqs`, `freq_offset` and `cfreq` (cached) properties
+    @property
+    def tsamp(self):
+        return self._tsamp
+
+    @tsamp.setter
+    def tsamp(self, value):
+        self._tsamp = value
+        # Ensure the times property will be recalculated
+        with suppress(AttributeError):
+            del self.times
+            del self.reltimes
+
+    @property
+    def tstart(self):
+        return self._tstart
+
+    @tstart.setter
+    def tstart(self, value):
+        self._tstart = value
+        # Ensure the times property will be recalculated
+        with suppress(AttributeError):
+            del self.times
+            del self.reltimes
+
+    @property
+    def fch1(self):
+        return self._fch1
+
+    @fch1.setter
+    def fch1(self, value):
+        self._fch1 = value
+        with suppress(AttributeError):
+            del self.freqs
+            del self.freq_offset
+
+    @property
+    def foff(self):
+        return self._foff
+
+    @foff.setter
+    def foff(self, value):
+        self._foff = value
+        with suppress(AttributeError):
+            del self.freqs
+            del self.freq_offset
+
+    @property
+    def fanchor(self):
+        return self._fanchor
+
+    @fanchor.setter
+    def fanchor(self, value):
+        self._fanchor = value
+        with suppress(AttributeError):
+            del self.freqs
+            del self.freq_offset
+
+    # Cached properties only get calculated once.
+    # To recalculate them, delete the attribute
     @cached_property
     def freq_offset(self):
         """Get the central point offset in the first channel"""
-        fanchor = self.header["fanchor"]  # one of mid, top or bottom
-        foff = self.header["foff"]
         offset = 0
         direc = 0
-        if fanchor == "top":  # anchor at the higher frequency side
+        if self.fanchor == "top":  # anchor at the higher frequency side
             direc = 1
-        elif fanchor == "bottom":  # anchor at the lower frequency side
+        elif self.fanchor == "bottom":  # anchor at the lower frequency side
             direc = -1
-        if foff < 0:
-            offset = direc * foff / 2
+        if self.foff < 0:
+            offset = -direc * self.foff / 2
         else:
-            offset = -direc * foff / 2
+            offset = direc * self.foff / 2
         return offset
 
     @property
     def cfreq(self):
         """Central frequency"""
-        midchan = self.header["nchans"] / 2
-        foff = self.header["foff"]
-        start = self.header["fch1"]
-        cfreq = start + self.freq_offset + midchan * foff
+        midchan = self.nchans / 2
+        cfreq = self.fch1 + self.freq_offset + midchan * self.foff
         return cfreq
 
     @cached_property
     def freqs(self):
         if "freqs" in self.header:
             return self.header["freqs"]
-        nfreq = self.header["nchans"]
-        foff = self.header["foff"]
-        start = self.header["fch1"]
-        freqs = start + self.freq_offset + np.arange(nfreq) * foff
+        freqs = self.fch1 + self.freq_offset + np.arange(self.nchans) * self.foff
         return freqs
 
     @cached_property
@@ -175,8 +246,8 @@ class Burst:
         Use the `reltimes` property for higher resolution timestamps
         """
 
-        start = self.header["tstart"]
-        dt = self.header["tsamp"] / SOD
+        start = self.tstart
+        dt = self.tsamp / 1000 / SOD
         nsamp = self.data.shape[0]
         times = start + np.arange(nsamp) * dt
         return times
@@ -187,32 +258,27 @@ class Burst:
 
         if "reltimes" in self.header:
             return self.header["reltimes"]
-        dt = self.header["tsamp"]
         nsamp = self.data.shape[0]
-        times = np.arange(nsamp) * dt
+        times = np.arange(nsamp) * self.tsamp / 1000
         return times
 
     def channel2freq(self, channel):
-        foff = self.header["foff"]
-        start = self.header["fch1"]
-        freq = start + self.freq_offset + channel * foff
+        freq = self.fch1 + self.freq_offset + channel * self.foff
         return freq
 
     def freq2channel(self, freq):
-        foff = self.header["foff"]
-        start = self.header["fch1"]
-        channel = np.round((freq - start - self.freq_offset) / foff)
+        channel = np.round((freq - self.fch1 - self.freq_offset) / self.foff)
         return channel
 
     def sample2time(self, sample):
-        start = self.header.get("tstart", 0)
-        dt = self.header["tsamp"] / SOD
+        start = self.tstart
+        dt = self.tsamp / 1000 / SOD
         time = start + sample * dt
         return time
 
     def time2sample(self, time):
-        start = self.header.get("tstart", 0)
-        dt = self.header["tsamp"] / SOD
+        start = self.tstart
+        dt = self.tsamp / 1000 / SOD
         sample = np.round((time - start) / dt)
         return sample
 
@@ -248,7 +314,7 @@ class Burst:
         """
 
         if times:
-            dt = self.header["tsamp"]
+            dt = self.tsamp / 1000
             section = round(times[0] / 1e3 / dt), round(times[1] / 1e3 / dt)
             section = max(section[0], 0), min(section[1], self.data.shape[0])
             section = slice(*section)
@@ -297,7 +363,7 @@ class Burst:
         self.data = core.downsample(
             self.data, factor=factor, remainder=remainder, method=method
         )
-        self.header["tsamp"] *= factor
+        self.tsamp *= factor
         # Clear the times and reltimes cached properties by deleting
         # it (if it was never used before, it won't exist: ignore that case).
         with suppress(AttributeError):
@@ -319,7 +385,7 @@ class Burst:
         """
 
         self.data = core.upsample(self.data, factor=factor)
-        self.header["tsamp"] /= factor
+        self.tsamp /= factor
         # Clear the times and reltimes cached properties by deleting
         # it (if it was never used before, it won't exist: ignore that case).
         with suppress(AttributeError):
@@ -488,7 +554,7 @@ class Burst:
         dynspec, _ = core.create_dynspectrum(
             data,
             self.freqs,
-            self.header["tsamp"],
+            self.tsamp,
             dm,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
@@ -559,7 +625,7 @@ class Burst:
                 warnings.warn("No `dm` supplied and no default dm available")
 
         if dm:
-            dm = {"dm": dm, "freq": self.freqs, "tsamp": self.header["tsamp"]}
+            dm = {"dm": dm, "freq": self.freqs, "tsamp": self.tsamp}
 
         intensity = core.calc_intensity(
             data, dm, badchannels, datarange, bkg_extra=bkg_extra
@@ -584,7 +650,7 @@ class Burst:
         lightcurve, _ = core.calc_lightcurve(
             data,
             self.freqs,
-            self.header["tsamp"],
+            self.tsamp,
             dm,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
@@ -606,7 +672,7 @@ class Burst:
         return core.bowtie(
             data,
             self.freqs,
-            self.header["tsamp"],
+            self.tsamp,
             dminterval,
             reffreq=reffreq,
             ndm=ndm,
@@ -978,7 +1044,7 @@ class Burst:
             bkg_method=bkg_method,
             peak=peak,
             dm_coherent=dm_coherent,
-            foff=self.header["foff"],
+            foff=self.foff,
             cfreq=self.cfreq,
             ax=ax,
             **options,
