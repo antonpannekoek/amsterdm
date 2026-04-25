@@ -20,7 +20,7 @@ import numpy as np
 
 import amsterdm
 from amsterdm import core
-from amsterdm.constants import DEFAULT_BACKGROUND_RANGE
+from amsterdm.constants import DEFAULT_BACKGROUND_RANGE, DMUNIT
 
 logger = logging.getLogger("amsterdm")
 
@@ -54,8 +54,9 @@ def main(
         ndm = s2nrange[2]
         s2nrange = (s2nrange[0], s2nrange[1], int(round(s2nrange[2])))
     else:  # default to DM +/- 1, 50 steps
-        dminterval = (dm - 0.1, dm + 0.1)
+        dminterval = (dm - 0.1 * DMUNIT, dm + 0.1 * DMUNIT)
         ndm = 50
+
     with amsterdm.openfile(path) as burst:
         logger.info("Done reading file")
         pngfile = path.with_suffix(".png")
@@ -101,7 +102,7 @@ def main(
         if "all" in plots or "bowtie" in plots:
             logger.info("Creating bowtie plot")
             fig, ax = burst.bowtieplot(
-                (dm - 50, dm + 50),
+                (dm - 50 * DMUNIT, dm + 50 * DMUNIT),
                 badchannels=badchannels,
                 backgroundrange=background,
                 ndm=50,
@@ -205,7 +206,7 @@ def parse_args():
 
     parser = ArgumentParser()
     parser.add_argument("file", help="Filterbank file")
-    parser.add_argument("--dm", type=float, default=0)
+    parser.add_argument("--dm", type=float, default=0, help="Dispersion measure")
     # parser.add_argument("--dm", type=float, default=219.356)
     parser.add_argument(
         "--plots",
@@ -256,14 +257,8 @@ def parse_args():
         "--freqs", nargs=2, type=float, help="Frequency range to select data (in MHz)"
     )
 
-    # parser.add_argument(
-    #    '--plot-extremes',
-    #    action='store_true',
-    #    help=("If a 's2n' plot is selected (and thus a DM range exist), "
-    #          "and a 'waterfall' or 'lightcurve' plot is also selected, "
-    #          "plot the latter plot(s) at the extremes of the DM range")
-    # )
     args = parser.parse_args()
+    args.dm *= DMUNIT
     if args.s2n_range:
         args.s2n_range = (args.s2n_range[0], args.s2n_range[1], int(args.s2n_range[2]))
     return args
