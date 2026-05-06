@@ -2,17 +2,35 @@
 
 from typing import NamedTuple
 
+from astropy.units import Quantity
 import numpy as np
 
 
-__all__ = ["FInterval", "mask2d", "coord2deg", "symlog", "symlog10"]
+__all__ = ["FInterval", "QInterval", "mask2d", "coord2deg", "symlog", "symlog10"]
 
 
 class FInterval(NamedTuple):
-    """Simple tuple to hold a floating point interval"""
+    """Simple tuple to hold a floating point interval
+
+    Note that there is no restriction that the two values are not the
+    same and start is smaller than end.
+
+    """
 
     start: float
     end: float
+
+
+class QInterval(NamedTuple):
+    """Simple tuple to hold an interval of two quantities
+
+    Note that there is no restriction that the two quantities are not the
+    same and start is smaller than end.
+
+    """
+
+    start: Quantity
+    end: Quantity
 
 
 def mask2d(data, rowids):

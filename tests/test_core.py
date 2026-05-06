@@ -1,9 +1,11 @@
+from astropy import units
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 import pytest
 from pytest import approx
 
 from amsterdm import core
+from amsterdm.constants import DMUNIT
 
 
 @pytest.fixture
@@ -389,6 +391,12 @@ def test_dedisperse():
         freqs = np.arange(1200, 1000, -20)
         core.dedisperse(data, freqs, tsamp=1, dm=100)
 
+    freqs = np.arange(1200, 1000, -25) * units.MHz
+    result = core.dedisperse(data, freqs, tsamp=1 * units.ms, dm=100 * DMUNIT)
+    # The data itself is still unitless
+    assert not isinstance(result, units.Quantity)
+    assert_allclose(result, expected)
+
 
 def test_flag():
     data = np.ones(80).reshape(10, 8)
@@ -498,6 +506,17 @@ def test_create_dynspectrum():
             [-1.3416407864998738, -1.3416407864998738, 1.3416407864998738],
         ]
     )
+    assert_allclose(idata, expected)
+
+    # Verify that unit inputs work
+    freqs *= units.MHz
+    idata, bkg = core.create_dynspectrum(
+        data, freqs, tsamp=1e3 * units.us, dm=10 * DMUNIT, backgroundrange=[0, 1]
+    )
+    assert_allclose(bkg[0], [2.5, 2.5, 2.5])
+    assert_allclose(bkg[1], np.sqrt([1.25, 1.25, 1.25]))
+    # The data is still unitless
+    assert_allclose(idata, expected)
 
 
 def test_calc_lightcurve():
@@ -516,7 +535,7 @@ def test_calc_lightcurve():
 
 
 def test_calc_lightcurve_from_waterfall():
-    # Dedispersed and bandpass corrected data; see test_create_waterfall
+    # Dedispersed and bandpass corrected data; see test_create_dynspectrum
     # above.
     data = np.array(
         [
@@ -533,39 +552,75 @@ def test_calc_lightcurve_from_waterfall():
 
 def test_bowtie():
     data = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]])
-    freqs = np.array([1000, 1100, 1200])
+    freqs = np.array([1.0, 1.1, 1.2])
     dminterval = [9, 11]
-    result = core.bowtie(data, freqs, tsamp=1, dminterval=dminterval, ndm=5)
+    result = core.bowtie(data, freqs, tsamp=0.1, dminterval=dminterval, ndm=5)
     expected = np.array(
         [
-            [-3.0, 1.66666667, 6.33333333, 11.0],
-            [-1.0, 3.66666667, 8.33333333, 5.0],
-            [1.0, 5.66666667, 10.33333333, -1.0],
-            [3.0, 7.66666667, 4.33333333, 1.0],
-            [5.0, 9.66666667, -1.66666667, 3.0],
+            [-1.0, -4.33333333, 0.33333333, 5.0],
+            [5.0, -6.33333333, -1.66666667, 3.0],
+            [1.0, 5.66666667, -5.66666667, -1.0],
+            [-3.0, 1.66666667, 6.33333333, -5.0],
+            [-5.0, -0.33333333, 4.33333333, 1.0],
         ]
+    )
+    assert_allclose(result, expected)
+
+    freqs *= units.MHz
+    result = core.bowtie(
+        data, freqs, tsamp=0.1 * units.ms, dminterval=dminterval * DMUNIT, ndm=5
     )
     assert_allclose(result, expected)
 
 
 def test_signal2noise():
-    data = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]])
-    freqs = np.array([1000, 1100, 1200])
+    data = np.array([[1, 1, 1], [16, 16, 16], [3, 3, 3], [4, 4, 4]])
+    freqs = np.array([1.0, 1.1, 1.2])
     dminterval = [9, 11]
-    result = core.signal2noise(data, freqs, 1, dminterval, ndm=9)
+    result = core.signal2noise(data, freqs, 1e-1, dminterval, ndm=9)
     # First value is a list of DMs
     assert_allclose(result[0], np.linspace(9, 11, 9))
     expected = np.array(
-        [9.0, 9.0, 9.0, 9.0, 11.0, 8.33333333, 8.33333333, 8.33333333, 7.0]
+        [
+            2.8974359,
+            3.0,
+            2.12820513,
+            2.8974359,
+            2.43589744,
+            3.0,
+            2.33333333,
+            2.8974359,
+            3.0,
+        ]
     )
     # Second value is a list of signal-to-noise ratios
     assert_allclose(result[1], expected)
 
     # Set the zerpoint dm to be at the end of the interval
-    result = core.signal2noise(data, freqs, 1, dminterval, dm=11, ndm=9)
+    result = core.signal2noise(data, freqs, 0.1, dminterval, dm=11, ndm=9)
     assert_allclose(result[0], np.linspace(9, 11, 9))
-    expected = np.array([3.0, 3.0, 3.0, 3.0, 5.0, 5.0, 5.0, 7.0, 7.0])
+
+    expected = np.array(
+        [
+            24.6,
+            24.73333333,
+            25.26666667,
+            25.0,
+            23.26666667,
+            23.0,
+            33.4,
+            33.0,
+            24.73333333,
+        ]
+    )
     assert_allclose(result[1], expected)
+
+    # Test for units
+    freqs *= units.MHz
+    dminterval *= DMUNIT
+    result = core.signal2noise(data, freqs, 1, dminterval, ndm=9)
+    # First value is a list of DMs
+    assert_allclose(result[0], np.linspace(9, 11, 9) * DMUNIT)
 
 
 def test_fit_ratios():
@@ -573,10 +628,16 @@ def test_fit_ratios():
     dms = [8, 9, 10, 11, 12]
     ratios = [1, 2, 3, 2, 1]
     ampl, mean, stddev = core.fit_ratios(dms, ratios)
-
     assert ampl == pytest.approx(2.8402246050285)
     assert mean == pytest.approx(10.0)
     assert stddev == pytest.approx(1.3304348)
+
+    dms *= DMUNIT
+    ampl, mean, stddev = core.fit_ratios(dms, ratios)
+    assert ampl == pytest.approx(2.8402246050285)
+    # Bit hacky, since pytest.approx won't work with quantities
+    assert abs(mean - 10.0 * DMUNIT) < 2 * np.finfo(float).eps * DMUNIT
+    assert abs(stddev - 1.330434836214336 * DMUNIT) < 2 * np.finfo(float).eps * DMUNIT
 
 
 def test_format_data():

@@ -26,6 +26,7 @@ import logging
 from types import EllipsisType
 
 from astropy.time import Time
+from astropy.units import Quantity
 import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
@@ -33,7 +34,7 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST
+from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST, DMUNIT
 from . import core
 from .utils import FInterval, symlog
 
@@ -62,7 +63,7 @@ def waterfall(
     data: array,
     freqs: np.ndarray,
     tsamp: float,
-    dm: float = 0,
+    dm: float | Quantity = 0,
     reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
@@ -154,6 +155,7 @@ def waterfall(
 
     if badchannels is not None:
         data = core.flag(data, badchannels)
+
     stokesI, _ = core.create_dynspectrum(
         data, freqs, tsamp, dm, reffreq, backgroundrange, bkg_method, background
     )
@@ -187,13 +189,13 @@ def waterfall(
 
     if x2label:
         # Ensure things are in milliseconds
-        dt = tsamp
+        dt = tsamp.to("ms").value
         axx2 = ax.secondary_xaxis("top", functions=(lambda x: x * dt, lambda x: x / dt))
         axx2.set_xlabel(x2label)
     if y2label:
         ax2 = ax.twinx()
         # Assume the frequencies are linear
-        ax2.set_ylim([freqs[0], freqs[-1]])
+        ax2.set_ylim([freqs[0].value, freqs[-1].value])
         ax2.set_ylabel(y2label)
 
     if cbar:
@@ -211,7 +213,7 @@ def lightcurve(
     data: array,
     freqs: np.ndarray,
     tsamp: float,
-    dm: float = 0,
+    dm: float | Quantity = 0,
     reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
@@ -262,7 +264,7 @@ def background(
     data: array,
     freqs: np.ndarray,
     tsamp: float,
-    dm: float = 0,
+    dm: float | Quantity = 0,
     reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
@@ -286,8 +288,7 @@ def background(
 
     if badchannels is not None:
         data = core.flag(data, badchannels)
-    if dm:
-        data = core.dedisperse(data, freqs, tsamp, dm, reffreq=reffreq)
+    data = core.dedisperse(data, freqs, tsamp, dm, reffreq=reffreq)
     # `calc_background` by itself does not dedisperse or bandpass correct
     mean, stddev = core.calc_background(data, backgroundrange, method)
 
@@ -399,6 +400,16 @@ def bowtie(
         stop = trange.stop if trange.stop else data.shape[1]
         extent = [start, stop, dminterval[1], dminterval[0]]
 
+    # Ensure proper scalars
+    if isinstance(extent[0], Quantity):
+        extent[0] = extent[0].to("s").value
+    if isinstance(extent[1], Quantity):
+        extent[1] = extent[1].to("s").value
+    if isinstance(extent[2], Quantity):
+        extent[2] = extent[2].to(DMUNIT).value
+    if isinstance(extent[3], Quantity):
+        extent[3] = extent[3].to(DMUNIT).value
+
     vmin = options.get("vmin", 0.1)
     vmax = options.get("vmax", 0.9)
     cmap = options.get("cmap", "plasma")
@@ -412,6 +423,7 @@ def bowtie(
         data = symlog(data)
 
     vmin, vmax = np.nanpercentile(data, (vmin * 100, vmax * 100))
+
     image = ax.imshow(
         data,
         aspect="auto",

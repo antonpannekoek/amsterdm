@@ -1,6 +1,6 @@
+from astropy import units
 import numpy as np
 import pytest
-from pytest import approx
 
 from amsterdm.burst import Burst
 from amsterdm import core
@@ -87,53 +87,58 @@ def test_properties():
     header["tsamp"] = 1e-4  # seconds; will be converted into milliseconds
     burst = Burst(header, data)
 
-    assert burst.tsamp == approx(0.1)
+    # Hack around pytest.approx not working with quantities
+    assert (
+        abs(burst.tsamp - 0.1 * units.millisecond)
+        < 2 * np.finfo(float).eps * units.second
+    )
+
     assert burst.nchans == 20  # size of second axis
-    assert burst.fch1 == 1400.0
-    assert burst.foff == 4.0
+    assert burst.fch1 == 1400.0 * units.MHz
+    assert burst.foff == 4.0 * units.MHz
     assert burst.fanchor == "mid"  # default is mid-channel
 
-    assert burst.cfreq == approx(1440.0)
-    expected = np.arange(1400, 1477, 4)
+    assert abs(burst.cfreq - 1440.0 * units.MHz) < 2 * np.finfo(float).eps * units.Hz
+    expected = np.arange(1400, 1477, 4) * units.MHz
     np.testing.assert_allclose(burst.freqs, expected)
     # Convert 'times' attribute from days to milliseconds
-    expected = np.arange(0, 4.95, 0.1)
-    np.testing.assert_allclose(burst.times * 86400 * 1000, expected)
+    expected = np.arange(0, 4.95, 0.1) * units.millisecond
+    np.testing.assert_allclose(burst.times, expected)
 
     burst.foff = 3
-    expected = np.arange(1400.0, 1458.0, 3.0)
+    expected = np.arange(1400.0, 1458.0, 3.0) * units.MHz
     np.testing.assert_allclose(burst.freqs, expected)
 
     burst.fch1 = 1200
-    expected -= 200.0
+    expected -= 200.0 * units.MHz
     np.testing.assert_allclose(burst.freqs, expected)
 
     burst.fanchor = "bottom"
-    expected -= 1.5
+    expected -= 1.5 * units.MHz
     np.testing.assert_allclose(burst.freqs, expected)
-    expected = np.arange(1198.5, 1140, -3)
-    burst.foff = -3
+    expected = np.arange(1198.5, 1140, -3) * units.MHz
+    burst.foff = -3 * units.MHz
     np.testing.assert_allclose(burst.freqs, expected)
 
     burst.fanchor = "top"
-    expected += 3
+    expected += 3 * units.MHz
     np.testing.assert_allclose(burst.freqs, expected)
-    burst.foff = 3
-    expected = np.arange(1201.5, 1260, 3)
+    burst.foff = 3 * units.MHz
+    expected = np.arange(1201.5, 1260, 3) * units.MHz
     np.testing.assert_allclose(burst.freqs, expected)
 
-    expected = np.arange(0, 4.95, 0.1)
-    np.testing.assert_allclose(burst.reltimes * 1000, expected)
+    expected = np.arange(0, 4.95, 0.1) * units.millisecond
+    np.testing.assert_allclose(burst.reltimes, expected)
 
     # Increase sampling time
     burst.tsamp = 0.2
     expected *= 2
-    np.testing.assert_allclose(burst.reltimes * 1000, expected)
+    np.testing.assert_allclose(burst.reltimes, expected)
 
     # Add 10 days
     burst.tstart = 10
     # Relative times should stay the same
-    np.testing.assert_allclose(burst.reltimes * 1000, expected)
+    np.testing.assert_allclose(burst.reltimes, expected)
     # Absolute times change by 10 days
-    expected += 10 * 86400 * 1000
-    np.testing.assert_allclose(burst.times * 86400 * 1000, expected)
+    expected += 10 * units.day
+    np.testing.assert_allclose(burst.times, expected)

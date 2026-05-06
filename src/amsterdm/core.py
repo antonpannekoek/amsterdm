@@ -57,10 +57,12 @@ import logging
 
 from astropy.modeling.fitting import TRFLSQFitter
 from astropy.modeling.models import Gaussian1D
+from astropy import units
+from astropy.units import Quantity
 import numpy as np
 
-from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST
-from .utils import FInterval
+from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST, DMUNIT
+from .utils import FInterval, QInterval
 
 
 __all__ = [
@@ -86,6 +88,49 @@ type array = np.ndarray | np.ma.MaskedArray
 
 
 logger = logging.getLogger(__package__)
+
+
+def ensure_quantities(
+    tsamp: None | float | Quantity = None,
+    freqs: None | float | Quantity = None,
+    reffreq: None | float | Quantity = None,
+    dm: None | float | Quantity = None,
+    dminterval: None | FInterval | QInterval = None,
+) -> tuple[Quantity, Quantity, Quantity, Quantity, QInterval]:
+    """Helper function to ensure inputs are always in a correct quantity
+
+    Also sets the reference frequency `reffreq` to the maximum of the frequencies,
+    if `freqs` is not None and `reffreq` is None.
+
+    Returns a tuple of all the input values, in order of the input arguments.
+
+    If any input value is `None`, it is not converted (excepted for `reffreq`),
+    and `None` is returned for its value in the returned tuple.
+
+    For tsamp, the default unit if not provided is millisecond.
+
+    For freqs and reffreq, the default unit if not provided is MHz.
+
+    """
+
+    if tsamp is not None and not isinstance(tsamp, Quantity):
+        tsamp *= units.millisecond
+    if freqs is not None:
+        # Take care not to change the original input list/array
+        freqs_ = freqs[:]
+        if not isinstance(freqs, Quantity):
+            freqs_ *= units.MHz
+    if reffreq is None and freqs is not None:
+        # Use maximum frequency as reference frequency
+        reffreq = np.max(freqs)
+    if reffreq is not None and not isinstance(reffreq, Quantity):
+        reffreq *= units.MHz
+    if dm is not None and not isinstance(dm, Quantity):
+        dm *= DMUNIT
+    if dminterval is not None and not isinstance(dminterval[0], Quantity):
+        dminterval = (dminterval[0] * DMUNIT, dminterval[1] * DMUNIT)
+
+    return (tsamp, freqs_, reffreq, dm, dminterval)
 
 
 def _format_data(
@@ -778,11 +823,11 @@ def correct_bandpass(
 
 def dedisperse(
     data: array,
-    freqs: np.ndarray,
-    tsamp: float,
-    dm: float,
-    reffreq: float | None = None,
-    dmconst: float = DMCONST,
+    freqs: list | np.ndarray | Quantity,
+    tsamp: float | Quantity,
+    dm: float | Quantity,
+    reffreq: float | Quantity | None = None,
+    dmconst: Quantity = DMCONST,
 ) -> array:
     """Dedisperse a two-dimensional data set
 
@@ -798,9 +843,9 @@ def dedisperse(
     data : array
         data containing freq on the y-axis (outer axis) and time on
         the x-axis (inner axis)
-    freqs : np.ndarray
+    freqs : np.ndarray, Quantity
         Array containing the channel frequencies in units of MHz
-    tsamp : float
+    tsamp : float, Quantity
         sampling time in units of milliseconds.
     dm : float
         Dispersion measure in units of pc / cc.
@@ -827,15 +872,16 @@ def dedisperse(
             "`freqs` length does not match the last axis of the data array"
         )
 
-    # set up freq info
-    freqs = freqs.astype(np.float64)
-    if reffreq is None:
-        reffreq = np.max(freqs)
+    (tsamp, freqs, reffreq, dm, _) = ensure_quantities(tsamp, freqs, reffreq, dm, None)
+
+    if dm.value == 0:
+        return data.copy()
 
     # calculate time shifts and convert to bin shifts
     time_shift = dmconst * dm * (reffreq**-2.0 - freqs**-2.0)
+    bin_shifts = (time_shift / tsamp).decompose().value
     # round to nearest integer
-    bin_shifts = np.rint((time_shift / tsamp)).astype(np.int64)
+    bin_shifts = np.rint((time_shift / tsamp).decompose()).value.astype(np.int64)
     # Assert that there is a shift for each channel / frequency
     assert len(bin_shifts) == data.shape[-1]
 
@@ -1034,10 +1080,10 @@ def calc_intensity(
 # polarization channels
 def _create_dynspectra(
     data: array | dict[str, array],
-    freqs: np.ndarray,
-    tsamp: float,
-    dm: float | None,
-    reffreq: float | None = None,
+    freqs: list | np.ndarray | Quantity,
+    tsamp: float | Quantity,
+    dm: float | Quantity,
+    reffreq: float | Quantity | None = None,
     backgroundrange: FInterval | tuple[FInterval] | None = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str | None = "mean",
     background: tuple[float | dict, float | dict] | None = None,
@@ -1051,24 +1097,28 @@ def _create_dynspectra(
     """
 
     data, poltype = _format_data(data)
-
     data = np.squeeze(data)
 
+    yy = None
     if data.ndim == 2:
         xx = np.ma.array(data)
-        yy = None
     elif data.shape[1] != 2:
-        raise ValueError("second (polarization) dimension has incorrect size")
+        if poltype == "iquv":
+            xx = np.ma.array(data[:, 0, :])
+        else:
+            raise ValueError("second (polarization) dimension has incorrect size")
     else:
         xx = np.ma.array(data[:, 0, :])
         yy = np.ma.array(data[:, 1, :])
+
+    (tsamp, freqs, reffreq, dm, _) = ensure_quantities(tsamp, freqs, reffreq, dm, None)
 
     if len(freqs) != xx.shape[-1]:
         raise ValueError(
             "`freqs` length does not match the last axis of the data array"
         )
 
-    if dm:
+    if dm.value:
         xx = dedisperse(xx, freqs, tsamp, dm, reffreq=reffreq)
         if yy is not None:
             yy = dedisperse(yy, freqs, tsamp, dm, reffreq=reffreq)
@@ -1130,10 +1180,10 @@ def _create_dynspectra(
 
 def create_dynspectrum(
     data: array | dict[str, array],
-    freqs: np.ndarray,
-    tsamp: float,
-    dm: float | None,
-    reffreq: float | None = None,
+    freqs: list | np.ndarray | Quantity,
+    tsamp: float | Quantity,
+    dm: float | Quantity,
+    reffreq: float | Quantity | None = None,
     backgroundrange: FInterval | tuple[FInterval] | None = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str | None = "mean",
     background: tuple[float | dict, float | dict] | None = None,
@@ -1232,6 +1282,8 @@ def create_dynspectrum(
     if combine not in ("mean", "average", "sum"):
         raise ValueError('`combine` is not one of "mean", "average" or "sum"')
 
+    (tsamp, freqs, reffreq, dm, _) = ensure_quantities(tsamp, freqs, reffreq, dm, None)
+
     spectra = _create_dynspectra(
         data, freqs, tsamp, dm, reffreq, backgroundrange, bkg_method, background
     )
@@ -1257,10 +1309,10 @@ def create_dynspectrum(
 
 def calc_lightcurve(
     data: dict[str, np.ndarray | np.ma.MaskedArray],
-    freqs: np.ndarray,
-    tsamp: float,
-    dm: float | None,
-    reffreq: float | None = None,
+    freqs: list | np.ndarray | Quantity,
+    tsamp: float | Quantity,
+    dm: float | Quantity,
+    reffreq: float | Quantity | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "mean",
     background: tuple[float | dict, float | dict] | None = None,
@@ -1371,10 +1423,10 @@ def calc_lightcurve_from_waterfall(waterfall: array) -> array:
 
 def bowtie(
     data: np.ndarray,
-    freqs: np.ndarray,
-    tsamp: float,
-    dminterval: FInterval,
-    reffreq: float | None = None,
+    freqs: list | np.ndarray | Quantity,
+    tsamp: float | Quantity,
+    dminterval: FInterval | QInterval,
+    reffreq: float | Quantity | None = None,
     ndm: int = 50,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "mean",
@@ -1392,7 +1444,7 @@ def bowtie(
     tsamp : float
         sampling time interval in seconds
 
-    dm : tuple[float, float]
+    dminterval : tuple[float, float]
         range of the dispersion measure: start and stop
 
         An average DM is calculated from this range, which is then
@@ -1438,6 +1490,10 @@ def bowtie(
             "`freqs` length does not match the last axis of the data array"
         )
 
+    (tsamp, freqs, reffreq, _, dminterval) = ensure_quantities(
+        tsamp, freqs, reffreq, None, dminterval
+    )
+
     dm_center = (dminterval[0] + dminterval[1]) / 2
 
     spectra = _create_dynspectra(
@@ -1471,10 +1527,10 @@ def bowtie(
 
 def signal2noise(
     data: array,
-    freqs: np.ndarray,
-    tsamp: float,
-    dminterval: FInterval,
-    dm: float | None = None,
+    freqs: list | np.ndarray | Quantity,
+    tsamp: float | Quantity,
+    dminterval: FInterval | QInterval,
+    dm: float | Quantity | None = None,
     reffreq: float | None = None,
     ndm: int = 50,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
@@ -1574,16 +1630,20 @@ def signal2noise(
             "`freqs` length does not match the last axis of the data array"
         )
 
+    has_unit = isinstance(dminterval[0], Quantity)
+
+    (tsamp, freqs, reffreq, dm, dminterval) = ensure_quantities(
+        tsamp, freqs, reffreq, dm, dminterval
+    )
+
     if dm is None:
         dm_center = (dminterval[0] + dminterval[1]) / 2
     else:
         dm_center = dm
-
     spectra = _create_dynspectra(
         data, freqs, tsamp, dm_center, reffreq, backgroundrange, bkg_method
     )
     waterfall = spectra["xx"][0]
-
     lightcurve = np.ma.filled(waterfall, 0).sum(axis=1)
     idx_bkg = []
     nsamp = len(lightcurve)
@@ -1600,23 +1660,25 @@ def signal2noise(
     # dms is relative to the mean DM
     dms = np.linspace(dminterval[0], dminterval[1], ndm) - dm_center
 
-    logger.info("Iterating over %d DMs from %.4f to %.4f", len(dms), dms[0], dms[-1])
+    logger.info(
+        "Iterating over %d DMs from %.4f to %.4f", len(dms), dms[0].value, dms[-1].value
+    )
     ratios = []
     for i, dm in enumerate(dms):
-        logger.debug("dm = %.4f", dm)
-        dm -= dm_center
+        logger.debug("dm = %.4f", dm.value)
         relwaterfall = dedisperse(waterfall, freqs, tsamp, dm, reffreq=reffreq)
-
         # Sum across frequencies to obtain the light curve
         lightcurve = np.ma.filled(relwaterfall, 0).sum(axis=1)
-
         value = lightcurve.max() if peak else lightcurve.sum()
         ratio = value / lcstd
         ratios.append(ratio)
 
     dms += dm_center
 
-    return dms, np.asarray(ratios)
+    if has_unit:
+        return dms, np.asarray(ratios)
+    else:
+        return dms.value, np.asarray(ratios)
 
 
 def fit_ratios(dms, ratios) -> tuple[float, float, float]:
@@ -1648,7 +1710,12 @@ def fit_ratios(dms, ratios) -> tuple[float, float, float]:
     stddev = (max(dms) - min(dms)) / 4  # rough estimate
     model = Gaussian1D(amplitude=max(ratios), mean=np.median(dms), stddev=stddev)
     fit = fitter(model, dms, ratios)
-    ampl, mean, stddev = fit.amplitude.value, fit.mean.value, fit.stddev.value
+    ampl = fit.amplitude.value
+    # Handle potential quantities
+    if fit.mean.unit:
+        mean, stddev = fit.mean.quantity, fit.stddev.quantity
+    else:
+        mean, stddev = fit.mean.value, fit.stddev.value
     logger.info(
         "Ratio fit to Gaussian; result amplitude, mean +/- stddev = %.3f, %.3f +/- %.3f",
         ampl,

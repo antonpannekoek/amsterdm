@@ -6,13 +6,15 @@ from pathlib import Path, PurePath
 from types import EllipsisType
 import warnings
 
+from astropy import units
+from astropy.units import Quantity
 import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 
 from . import core
 from . import plot
-from .constants import DEFAULT_BACKGROUND_RANGE, SOD
+from .constants import DEFAULT_BACKGROUND_RANGE, DMUNIT
 from .io import read_fileformat, read_filterbank, read_fits, read_psrfits, read_hdf5
 from .utils import FInterval
 
@@ -50,12 +52,14 @@ class Burst:
             header, data = read_hdf5(fobj)
         header["format"] = fileformat
 
-        return cls(header, data, fobj)
+        return cls(header, data, file=fobj)
 
-    def __init__(self, header, data, dm=None, file=None, copy=False):
+    def __init__(self, header, data, dm=0, file=None, copy=False):
         self.header = header.copy()
         self.data = data.copy() if copy else data
         self.dm = dm
+        if not isinstance(self.dm, Quantity):
+            self.dm *= DMUNIT
         # copy=False only works if `self.data` is already a MaskedArray
         self.data = np.ma.masked_invalid(self.data, copy=False)
         self._data = None
@@ -129,13 +133,15 @@ class Burst:
         # Frequency units in MegaHertz
 
         # sample time; time resolution.
-        self._tsamp = self.header["tsamp"] * 1000
+        # Normally, we'd assume milliseconds, but headers tend
+        # to be in seconds
+        self._tsamp = self.header["tsamp"] * units.second
         # start time of observations
-        self._tstart = self.header.get("tstart", 0)
+        self._tstart = self.header.get("tstart", 0) * units.day
         # frequency starting point, corresponding to channel 0
-        self._fch1 = self.header["fch1"]
+        self._fch1 = self.header["fch1"] * units.MHz
         # frequency interval; frequency resolution
-        self._foff = self.header["foff"]
+        self._foff = self.header["foff"] * units.MHz
         # frequency anchor point: mid, bottom, top of channel
         # top means the higher frequency, bottom is the lower frequency of the channel
         self._fanchor = self.header["fanchor"]
@@ -143,7 +149,8 @@ class Burst:
         self.nchans = self.header["nchans"]
 
     def _flag_channels(self):
-        """Mask any invalid data, and set `self.badchannels` if a complete channel is masked"""
+        """Mask any invalid data, and set `self.badchannels`
+        if a complete channel is masked"""
         if self.data.mask.any():
             for i in range(self.data.shape[-1]):
                 if self.data[..., i].mask.all():
@@ -158,6 +165,8 @@ class Burst:
     @tsamp.setter
     def tsamp(self, value):
         self._tsamp = value
+        if self._tsamp is not None and not isinstance(self._tsamp, Quantity):
+            self._tsamp = value * units.millisecond
         # Ensure the times property will be recalculated
         with suppress(AttributeError):
             del self.times
@@ -170,6 +179,8 @@ class Burst:
     @tstart.setter
     def tstart(self, value):
         self._tstart = value
+        if self._tstart is not None and not isinstance(self._tstart, Quantity):
+            self._tstart = value * units.day
         # Ensure the times property will be recalculated
         with suppress(AttributeError):
             del self.times
@@ -182,6 +193,8 @@ class Burst:
     @fch1.setter
     def fch1(self, value):
         self._fch1 = value
+        if self._fch1 is not None and not isinstance(self._fch1, Quantity):
+            self._fch1 *= units.MHz
         with suppress(AttributeError):
             del self.freqs
             del self.freq_offset
@@ -193,6 +206,8 @@ class Burst:
     @foff.setter
     def foff(self, value):
         self._foff = value
+        if self._foff is not None and not isinstance(self._foff, Quantity):
+            self._foff *= units.MHz
         with suppress(AttributeError):
             del self.freqs
             del self.freq_offset
@@ -247,7 +262,7 @@ class Burst:
         """
 
         start = self.tstart
-        dt = self.tsamp / 1000 / SOD
+        dt = self.tsamp.to(units.day)
         nsamp = self.data.shape[0]
         times = start + np.arange(nsamp) * dt
         return times
@@ -259,7 +274,7 @@ class Burst:
         if "reltimes" in self.header:
             return self.header["reltimes"]
         nsamp = self.data.shape[0]
-        times = np.arange(nsamp) * self.tsamp / 1000
+        times = np.arange(nsamp) * self.tsamp
         return times
 
     def channel2freq(self, channel):
@@ -272,13 +287,13 @@ class Burst:
 
     def sample2time(self, sample):
         start = self.tstart
-        dt = self.tsamp / 1000 / SOD
+        dt = self.tsamp.to(units.day)
         time = start + sample * dt
         return time
 
     def time2sample(self, time):
         start = self.tstart
-        dt = self.tsamp / 1000 / SOD
+        dt = self.tsamp.to(units.day)
         sample = np.round((time - start) / dt)
         return sample
 
@@ -712,7 +727,7 @@ class Burst:
 
     def waterfall(
         self,
-        dm: float | None = None,
+        dm: float | Quantity | None = None,
         reffreq: float | None = None,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
@@ -748,7 +763,7 @@ class Burst:
             dm = self.dm
             if dm is None:
                 warnings.warn("No `dm` supplied and no default dm available")
-                dm = 0
+                dm = 0 * DMUNIT
 
         if self.data.ndim == 3:
             if self.data.shape[1] != 2:  # Assume Stokes IQUV
