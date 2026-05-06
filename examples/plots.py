@@ -19,9 +19,8 @@ from pathlib import Path
 import numpy as np
 
 import amsterdm
-import amsterdm.plot as dmplot
 from amsterdm import core
-
+from amsterdm.constants import DEFAULT_BACKGROUND_RANGE
 
 logger = logging.getLogger("amsterdm")
 
@@ -51,9 +50,12 @@ def main(
     setup_logger(loglevel)
     logger.info("Reading file %s", path)
     if s2nrange:
+        dminterval = s2nrange[0], s2nrange[1]
+        ndm = s2nrange[2]
         s2nrange = (s2nrange[0], s2nrange[1], int(round(s2nrange[2])))
     else:  # default to DM +/- 1, 50 steps
-        s2nrange = (dm - 1, dm + 1, 50)
+        dminterval = (dm - 0.1, dm + 0.1)
+        ndm = 50
     with amsterdm.openfile(path) as burst:
         logger.info("Done reading file")
         pngfile = path.with_suffix(".png")
@@ -85,10 +87,10 @@ def main(
             sections, _ = core.findrangelc(lc, kappa=10)
 
         if "all" in plots or "waterfall" in plots or "dynspec" in plots:
-            fig, ax = dmplot.waterfall(
-                burst,
+            logger.info("Creating waterfall plot")
+            fig, ax = burst.waterfall(
                 dm,
-                badchannels,
+                badchannels=badchannels,
                 backgroundrange=background,
                 fillmask=np.ma.median,
             )
@@ -97,10 +99,10 @@ def main(
             fig.savefig(outfile)
 
         if "all" in plots or "bowtie" in plots:
-            fig, ax = dmplot.bowtie(
-                burst,
+            logger.info("Creating bowtie plot")
+            fig, ax = burst.bowtieplot(
                 (dm - 50, dm + 50),
-                badchannels,
+                badchannels=badchannels,
                 backgroundrange=background,
                 ndm=50,
             )
@@ -110,8 +112,8 @@ def main(
 
         if "all" in plots or "lightcurve" in plots or "lc" in plots:
             logger.info("Creating light curve plot")
-            fig, ax = dmplot.lightcurve(
-                burst, dm, badchannels, backgroundrange=background
+            fig, ax = burst.lcplot(
+                dm, badchannels=badchannels, backgroundrange=background
             )
             if sections:
                 vlines = [item for interval in sections for item in interval]
@@ -128,14 +130,17 @@ def main(
             fig.savefig(outfile)
 
         if "all" in plots or "background" in plots or "bg" in plots:
-            fig, ax = dmplot.background(
-                burst, dm, badchannels, backgroundrange=background
+            logger.info("Creating background plot")
+            fig, ax = burst.bgplot(
+                dm, badchannels=badchannels, backgroundrange=background, method="mean"
             )
             ax.set_title(f"Background statistics of {path.stem}")
             outfile = pngfile.with_stem(path.stem + "-background")
             fig.savefig(outfile)
 
         if "all" in plots or "ratio" in plots or "s2n" in plots:
+            logger.info("Creating signal-to-noise plot")
+
             section = None
             if sections:
                 # combine sections into one big section
@@ -151,16 +156,13 @@ def main(
                     max(section[0] - delta / 2, 0),
                     min(section[1] + delta / 2, nsamples),
                 )
-            dms = np.linspace(*s2nrange)
-
             peak = True
-            fig, ax = dmplot.signal2noise(
-                burst,
-                dms,
+            fig, ax = burst.s2nplot(
+                dminterval,
+                ndm=ndm,
                 badchannels=badchannels,
                 backgroundrange=background,
                 peak=peak,
-                peak_interval=section,
                 fit=True,
             )
             if peak:
@@ -171,6 +173,8 @@ def main(
             fig.savefig(outfile)
 
         if "all" in plots or "grid" in plots:
+            logger.info("Creating grid of all plots")
+
             section = None
             if sections:
                 nsamples = burst.data.shape[0]
@@ -180,16 +184,15 @@ def main(
                 section = (max(0, section[0] - 1000), min(nsamples, section[1] + 1000))
                 # convert to fractions
                 section = (section[0] / nsamples, section[1] / nsamples)
-            dms = np.linspace(*s2nrange)
+
             peak = True
-            fig, ax = dmplot.grid(
-                burst,
+            fig, ax = burst.dmplot(
                 dm=dm,
-                dms=dms,
+                dminterval=dminterval,
+                ndm=ndm,
                 badchannels=badchannels,
                 backgroundrange=background,
                 peak=peak,
-                peak_interval=section,
                 title=path.stem,
             )
 
@@ -202,7 +205,8 @@ def parse_args():
 
     parser = ArgumentParser()
     parser.add_argument("file", help="Filterbank file")
-    parser.add_argument("--dm", type=float, default=219.356)
+    parser.add_argument("--dm", type=float, default=0)
+    # parser.add_argument("--dm", type=float, default=219.356)
     parser.add_argument(
         "--plots",
         choices=(
@@ -228,15 +232,16 @@ def parse_args():
         "--back",
         nargs=2,
         type=float,
+        default=DEFAULT_BACKGROUND_RANGE,
         action="append",
-        help="Set of start and end (time) fractions for the background estimate",
+        help="Set of start and end (sample) fractions for the background estimate",
     )
     parser.add_argument(
         "--s2n-range",
         nargs=3,
         type=float,
         default=None,
-        help="DM range for S/N calculation. Three values: low, high, number (2 floats + 1 int)",
+        help="DM range for S/N calculation. Three values: low, high, number of samples (2 floats + 1 int)",
     )
     parser.add_argument(
         "--s2n-section", nargs=2, type=float, help="Sample section to compute S/N for"
@@ -259,6 +264,8 @@ def parse_args():
     #          "plot the latter plot(s) at the extremes of the DM range")
     # )
     args = parser.parse_args()
+    if args.s2n_range:
+        args.s2n_range = (args.s2n_range[0], args.s2n_range[1], int(args.s2n_range[2]))
     return args
 
 

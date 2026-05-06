@@ -10,7 +10,18 @@ figures, one will likely want to create their own figures manually.
 
 """
 
-from contextlib import suppress
+# To do: change `burst` argument to data, freqs, tsamp. With the Burst
+# class now have plotting methods, this can be replaced by more
+# straightforward arguments in the plotting functions, which then become
+# more "fundamental". This will also remove the local "burst" imports,
+# which are currently necessary to avoid circular imports, as well as
+# the use of TYPE_CECKING for importing Burst for type-checking.
+#
+# Note that the use of a secondary axis (requiring burst.freq2channel)
+# may make it more difficult to get rid of Burst instances.
+
+from __future__ import annotations  # for Burst type
+
 import logging
 from types import EllipsisType
 
@@ -22,11 +33,13 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from .burst import Burst
 from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST
 from . import core
 from .utils import FInterval, symlog
 
+
+# Type alias
+type array = np.ndarray | np.ma.MaskedArray
 
 logger = logging.getLogger(__package__)
 
@@ -46,19 +59,80 @@ def ensure_figure(
 
 
 def waterfall(
-    burst: Burst,
+    data: array,
+    freqs: np.ndarray,
+    tsamp: float,
     dm: float = 0,
+    reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str = "median",
+    bkg_method: str = "mean",
+    background: tuple[float, float] | None = None,
     return_image: bool = False,
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes] | tuple[tuple[Figure, Axes], None]:
-    """ """
+    """Return a waterfall plot (dynamical spectrum)
 
-    fig, ax = ensure_figure(ax)
+    The input data has to be a two-dimensional array (it can be a
+    masked array). The data will be flagged for bad channels,
+    dedispersed and bandpass corrected from the (dedispersed)
+    background.
 
+    Note that the data is copied, so flagging and dedispersing does
+    not alter the input data. This may be a an issue for large data
+    sets.
+
+    Parameters
+    ----------
+
+    For most of the arguments, see `core.create_dynspectrum`. Since
+    the input data has be two-dimensional, options handling
+    polarization data are not available.
+
+    options: dict, optional
+        The following options related to plotting are available
+
+        - vmin, vmax: float. Set the range of the data to be included
+          for the colormap (see also Matplotlib's vmin and vmax), in
+          fractions. Default is vmin=0.1, vmax=0.9.
+
+        - cmap: String. Color map to use. Default is "viridis".
+
+        - cbar: Bool. Whether to draw a color bar on the side
+
+        - fillmask: String. How to fill the masked values (flagged
+          channels). Default is NaN, which tends to be
+          background/transparanet values in Matplotlib. "mean" or
+          "median" will replace masked values with the mean or median
+          value of the non-masked data, respectively. You can also
+          suply a function that takes the full data array as input
+          (i.e., two-dimensional masked data) and returns a single
+          value; so using `np.median` is the same as "median" in this
+          case. Finally, you can give a single float or integer as
+          replacement value.
+
+        - xlabel, ylabel, x2label, y2label: Strings. The axis labels,
+          for the x and y axes. The x2 and y2 labels are for the
+          "derived" values: times and frequencies. Defaults are
+          "samples", "channels", "time (milliseconds)" and "frequency
+          (MHz)", respectively.
+
+        - origin: String. Where to place the highest frequency. This
+          relates to the 'origin' parameter from imshow. Default is
+          "upper".
+
+        - logscale: Bool. Whether to use apply a log scale to the
+          input data. Default is False.
+
+    """
+
+    if not isinstance(data, (np.ndarray, np.ma.MaskedArray)):
+        raise ValueError("data is not a NumPy (masked) array")
+    if data.ndim != 2:
+        raise ValueError("data is not two-dimensional")
+
+    # Handle arguments
     if badchannels is None:
         badchannels = []
 
@@ -73,12 +147,26 @@ def waterfall(
     y2label = options.get("ylabel", "frequency (MHz)")
     origin = options.get("origin", "upper")
     logscale = options.get("logscale", False)
-    stokesI = burst.create_dynspectrum(
-        dm, badchannels, backgroundrange, bkg_method=bkg_method
+
+    fig, ax = ensure_figure(ax)
+
+    data = data.copy()  # Don't change the input data
+
+    if badchannels is not None:
+        data = core.flag(data, badchannels)
+    stokesI, _ = core.create_dynspectrum(
+        data, freqs, tsamp, dm, reffreq, backgroundrange, bkg_method, background
     )
+
     if fillmask:
         if isinstance(fillmask, (float, int)):
             stokesI = np.ma.filled(stokesI, fillmask)
+        elif fillmask == "median":
+            value = np.nanmedian(stokesI)
+            stokesI = np.ma.filled(stokesI, value)
+        elif fillmask == "mean":
+            value = np.nanmedian(stokesI)
+            stokesI = np.ma.filled(stokesI, value)
         elif callable(fillmask):
             value = fillmask(stokesI)
             stokesI = np.ma.filled(stokesI, value)
@@ -99,26 +187,20 @@ def waterfall(
 
     if x2label:
         # Ensure things are in milliseconds
-        dt = burst.header["tsamp"] * 1000
+        dt = tsamp
         axx2 = ax.secondary_xaxis("top", functions=(lambda x: x * dt, lambda x: x / dt))
         axx2.set_xlabel(x2label)
     if y2label:
-        axy2 = ax.secondary_yaxis(
-            "right", functions=(burst.channel2freq, burst.freq2channel)
-        )
-        axy2.set_ylabel(y2label)
+        ax2 = ax.twinx()
+        # Assume the frequencies are linear
+        ax2.set_ylim([freqs[0], freqs[-1]])
+        ax2.set_ylabel(y2label)
 
-    divider = make_axes_locatable(ax)
-    with suppress(AttributeError):
-        cbar = cbar.lower()
-    if cbar is True or cbar == "right":
-        cax = divider.append_axes("right", size="5%", pad=1)
-    elif cbar == "left":
-        cax = divider.append_axes("left", size="5%", pad=1)
     if cbar:
-        cb = fig.colorbar(image, cax=cax, orientation="vertical")
         if cbar == "left":
-            cb.ax.yaxis.set_ticks_position("left")
+            fig.colorbar(image, ax=ax, orientation="vertical", location="left")
+        else:
+            fig.colorbar(image, ax=ax, orientation="vertical", pad=0.15)
 
     if return_image:
         return (fig, ax), image
@@ -126,11 +208,14 @@ def waterfall(
 
 
 def lightcurve(
-    burst: Burst,
+    data: array,
+    freqs: np.ndarray,
+    tsamp: float,
     dm: float = 0,
+    reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str = "median",
+    bkg_method: str = "mean",
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
@@ -140,7 +225,6 @@ def lightcurve(
     The data is corrected for dispersion and background first, taking into account any bad channels.
 
     """
-
     fig, ax = ensure_figure(ax)
 
     if badchannels is None:
@@ -151,11 +235,12 @@ def lightcurve(
     logscale = options.get("logscale", False)
     ymin = options.get("ymin")
 
-    # maxchan = len(burst.freqs)
-    # badchannels = [maxchan - value for value in badchannels]
+    data = data.copy()  # Don't change the input data
 
-    lightcurve = burst.lightcurve(
-        dm, badchannels, backgroundrange, bkg_method=bkg_method
+    if badchannels is not None:
+        data = core.flag(data, badchannels)
+    lightcurve, _ = core.calc_lightcurve(
+        data, freqs, tsamp, dm, reffreq, backgroundrange, bkg_method=bkg_method
     )
 
     if logscale:
@@ -174,15 +259,20 @@ def lightcurve(
 
 
 def background(
-    burst: Burst,
+    data: array,
+    freqs: np.ndarray,
+    tsamp: float,
     dm: float = 0,
+    reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str = "median",
+    method: str = "mean",
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
     """Create a background plot of the mean and std-dev of the background
+
+    This plots the background, *after* dedispersion.
 
     Parameters:
 
@@ -190,12 +280,21 @@ def background(
         The first ax item is used for the mean background
         The second ax item is used for the std-dev background
     """
-
     fig, ax = ensure_figure(ax)
 
-    _, bkg = burst.create_dynspectrum(
-        dm, badchannels, backgroundrange, bkg_method=bkg_method, bkg_extra=True
-    )
+    data = data.copy()  # Don't change the input data
+
+    if badchannels is not None:
+        data = core.flag(data, badchannels)
+    if dm:
+        data = core.dedisperse(data, freqs, tsamp, dm, reffreq=reffreq)
+    # `calc_background` by itself does not dedisperse or bandpass correct
+    mean, stddev = core.calc_background(data, backgroundrange, method)
+
+    if mean.ndim == 2:
+        # Plot the background only for the first channel
+        mean = mean[0]
+        stddev = stddev[0]
 
     label_mean = options.get("label_mean", "mean bkg")
     label_std = options.get("label_std", "bkg stddev")
@@ -203,12 +302,11 @@ def background(
     ylabel = options.get("ylabel", "intensity")
     logscale = options.get("logscale", False)
 
-    mean, stddev = bkg["mean"], bkg["std"]
     if logscale:
         mean = symlog(mean)
         stddev = symlog(stddev)
 
-    channels = np.arange(1, burst.header["nchans"] + 1)
+    channels = np.arange(1, len(freqs) + 1)
     ax.plot(channels, mean, label=label_mean)
     ax.plot(channels, stddev, label=label_std)
     ax.legend()
@@ -220,24 +318,26 @@ def background(
 
 
 def bowtie(
-    burst: Burst,
-    dm: FInterval,
+    data: array,
+    freqs: np.ndarray,
+    tsamp: float,
+    dminterval: FInterval,
+    reffreq: float | None = None,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str = "median",
+    bkg_method: str = "mean",
     ndm: int = 50,
-    reffreq: float | None = None,
     trange: slice | EllipsisType = Ellipsis,
     ax: Axes | None = None,
     **options,
-):
+) -> tuple[Figure, Axes]:
     """Create a bowtie plot: varying DM versus time/samples
 
     Parameters
     ----------
-    burst : Burst
 
-    dm : tuple[float, float] (FInterval)
+
+    dminterval : tuple[float, float] (FInterval)
         range of the dispersion measure: start and end
 
         A central DM is calculated from this range, and is the
@@ -271,28 +371,33 @@ def bowtie(
     ax : Matplotlib Axes, default=None
         If given, use this axes to draw the graph on
     """
-
     # maxchan = len(burst.freqs)
     # badchannels = [maxchan - value for value in badchannels]
 
     fig, ax = ensure_figure(ax)
 
-    data = burst.bowtie(
-        dm,
-        badchannels,
-        backgroundrange,
-        bkg_method,
-        ndm,
+    data = data.copy()  # Don't change the input data
+
+    if badchannels is not None:
+        data = core.flag(data, badchannels)
+    data = core.bowtie(
+        data,
+        freqs,
+        tsamp,
+        dminterval,
         reffreq=reffreq,
+        ndm=ndm,
+        backgroundrange=backgroundrange,
+        bkg_method=bkg_method,
     )
 
     # Calculate the extent for the imshow axes
     if isinstance(trange, EllipsisType):
-        extent = [0, data.shape[1], dm[1], dm[0]]
+        extent = [0, data.shape[1], dminterval[1], dminterval[0]]
     else:
         start = trange.start or 0
         stop = trange.stop if trange.stop else data.shape[1]
-        extent = [start, stop, dm[1], dm[0]]
+        extent = [start, stop, dminterval[1], dminterval[0]]
 
     vmin = options.get("vmin", 0.1)
     vmax = options.get("vmax", 0.9)
@@ -332,28 +437,36 @@ def bowtie(
 
 
 def signal2noise(
-    burst: Burst,
-    dms: np.ndarray,
+    data: array,
+    freqs: np.ndarray,
+    tsamp: float,
+    dminterval: FInterval,
     reffreq: float | None = None,
+    ndm: int = 50,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str = "median",
+    bkg_method: str = "mean",
     peak: bool = True,
-    peak_interval: FInterval | None = None,
     fit: bool = False,
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
     fig, ax = ensure_figure(ax)
 
-    ratios = burst.signal2noise(
-        dms=dms,
+    data = data.copy()
+
+    if badchannels is not None:
+        data = core.flag(data, badchannels)
+    dms, ratios = core.signal2noise(
+        data,
+        freqs,
+        tsamp,
+        dminterval=dminterval,
         reffreq=reffreq,
-        badchannels=badchannels,
+        ndm=ndm,
         backgroundrange=backgroundrange,
         bkg_method=bkg_method,
         peak=peak,
-        peak_interval=peak_interval,
     )
 
     xlabel = options.get("xlabel", "DM")
@@ -425,19 +538,43 @@ def signal2noise(
 
 
 def grid(
-    burst: Burst,
+    data: array,
+    freqs: np.ndarray,
+    tsamp: float,
     dm: float,
-    dms: np.ndarray,
+    dminterval: FInterval,
     reffreq: float | None = None,
+    ndm: int = 50,
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-    bkg_method: str = "median",
+    bkg_method: str = "mean",
     peak: bool = True,
     peak_interval: FInterval | None = None,
-    coherent_dm: float = 0,
+    dm_coherent: float = 0,
+    foff: float = 0,
+    cfreq: float = 1,
+    tstart: float | None = None,
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
+    """Plot multiple DM figures in one grid
+
+    Parameters
+    ----------
+
+    dm : float
+
+        Dispersion measure used to create the plots. For plots that
+        require an interval, like the signal-to-noise plot,
+        `dminterval` is used instead.
+
+    dm_coherent : float, optional
+
+        The coherent dm. Often the initial dispersion measure
+        applied. Used to calculate the smearing; the `dm` argument is
+        used for the actual plots. Default 0.
+
+    """
     if not ax:
         figure = plt.figure(figsize=(12, 8), constrained_layout=True)
     else:
@@ -465,8 +602,11 @@ def grid(
     c_ax = figure.add_subplot(gs[1, 0])
     s2n_ax = figure.add_subplot(gs[1, 2])
     _, image = waterfall(
-        burst,
-        dm=dm,
+        data,
+        freqs,
+        tsamp,
+        dm,
+        reffreq,
         badchannels=badchannels,
         backgroundrange=backgroundrange,
         bkg_method=bkg_method,
@@ -478,8 +618,11 @@ def grid(
     c_ax.yaxis.set_ticks_position("left")
 
     lightcurve(
-        burst,
-        dm=dm,
+        data,
+        freqs,
+        tsamp,
+        dm,
+        reffreq,
         badchannels=badchannels,
         backgroundrange=backgroundrange,
         bkg_method=bkg_method,
@@ -488,9 +631,12 @@ def grid(
     lc_ax.set_title("Light curve")
 
     signal2noise(
-        burst,
-        dms,
+        data,
+        freqs,
+        tsamp,
+        dminterval,
         reffreq=reffreq,
+        ndm=ndm,
         badchannels=badchannels,
         backgroundrange=backgroundrange,
         bkg_method=bkg_method,
@@ -506,11 +652,10 @@ def grid(
         s2n_ax.set_title("Signal to noise")
 
     # Add overall info in top-right corner
-    incoherent_dm = coherent_dm - dm
-    smearing = abs(2 * DMCONST * incoherent_dm * burst.header["foff"] * burst.cfreq**-3)
-    obsdate = burst.header.get("tstart")
+    dm_incoherent = dm_coherent - dm
+    smearing = abs(2 * DMCONST * dm_incoherent * foff * cfreq**-3)
     obsdate = (
-        Time(obsdate, format="mjd").strftime("%Y-%m-%dT%H:%M:%S.%f") if obsdate else "-"
+        Time(tstart, format="mjd").strftime("%Y-%m-%dT%H:%M:%S.%f") if tstart else "-"
     )
     info_ax.axis("off")
     transform = info_ax.transAxes
@@ -520,7 +665,7 @@ def grid(
     info_ax.text(0.0, 0.7, f"Obs-date: {obsdate}")
     info_ax.text(0.0, 0.6, f"DM: {dm:.3f}", transform=transform, ha="left")
     info_ax.text(
-        0.0, 0.5, f"Coherent DM: {coherent_dm:.3f}", transform=transform, ha="left"
+        0.0, 0.5, f"Coherent DM: {dm_coherent:.3f}", transform=transform, ha="left"
     )
     info_ax.text(0.0, 0.4, f"Smearing: {smearing:g}")
     now = Time.now().strftime("%Y-%m-%dT%H:%M:%S")
