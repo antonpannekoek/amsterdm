@@ -1066,12 +1066,12 @@ class Burst:
         )
 
 
-def openfile(name: Path | str):
+def open(name: Path | str):
     """Helper method that returns an open file
 
     Can be use with a context manager:
 
-        with openfile(path) as burst:
+        with open(path) as burst:
             ...
 
     """

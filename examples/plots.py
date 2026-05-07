@@ -57,7 +57,7 @@ def main(
         dminterval = (dm - 0.1 * DMUNIT, dm + 0.1 * DMUNIT)
         ndm = 50
 
-    with amsterdm.openfile(path) as burst:
+    with amsterdm.open(path) as burst:
         logger.info("Done reading file")
         pngfile = path.with_suffix(".png")
         if badchannels is None:

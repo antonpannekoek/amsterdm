@@ -3,7 +3,7 @@ from pathlib import Path
 
 import astropy.io.fits as pyfits
 
-from amsterdm.burst import openfile
+from amsterdm.burst import open as openfile
 
 
 def run(

@@ -9,7 +9,7 @@ import panel as pn
 import param
 import xarray as xr
 
-from .burst import openfile
+from .burst import open as openfile
 from .utils import symlog10
 
 
