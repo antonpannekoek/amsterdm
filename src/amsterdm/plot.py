@@ -34,13 +34,10 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST, DMUNIT
+from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST, DMUNIT, Array
 from . import core
 from .utils import FInterval, symlog
 
-
-# Type alias
-type array = np.ndarray | np.ma.MaskedArray
 
 logger = logging.getLogger(__package__)
 
@@ -60,7 +57,7 @@ def ensure_figure(
 
 
 def waterfall(
-    data: array,
+    data: Array,
     freqs: np.ndarray,
     tsamp: float,
     dm: float | Quantity = 0,
@@ -210,7 +207,7 @@ def waterfall(
 
 
 def lightcurve(
-    data: array,
+    data: Array,
     freqs: np.ndarray,
     tsamp: float,
     dm: float | Quantity = 0,
@@ -261,7 +258,7 @@ def lightcurve(
 
 
 def background(
-    data: array,
+    data: Array,
     freqs: np.ndarray,
     tsamp: float,
     dm: float | Quantity = 0,
@@ -319,7 +316,7 @@ def background(
 
 
 def bowtie(
-    data: array,
+    data: Array,
     freqs: np.ndarray,
     tsamp: float,
     dminterval: FInterval,
@@ -449,7 +446,7 @@ def bowtie(
 
 
 def signal2noise(
-    data: array,
+    data: Array,
     freqs: np.ndarray,
     tsamp: float,
     dminterval: FInterval,
@@ -550,7 +547,7 @@ def signal2noise(
 
 
 def grid(
-    data: array,
+    data: Array,
     freqs: np.ndarray,
     tsamp: float,
     dm: float,

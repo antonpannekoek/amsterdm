@@ -14,13 +14,10 @@ from matplotlib.axes import Axes
 
 from . import core
 from . import plot
-from .constants import DEFAULT_BACKGROUND_RANGE, DMUNIT
+from .constants import DEFAULT_BACKGROUND_RANGE, DMUNIT, Array
 from .io import read_fileformat, read_filterbank, read_fits, read_psrfits, read_hdf5
 from .utils import FInterval
 
-
-# Type alias
-type array = np.ndarray | np.ma.MaskedArray
 
 logger = logging.getLogger(__package__)
 
@@ -275,7 +272,7 @@ class Burst:
             return self.header["reltimes"]
         nsamp = self.data.shape[0]
         times = np.arange(nsamp) * self.tsamp
-        times = times.to('s')
+        times = times.to("s")
         return times
 
     def channel2freq(self, channel):
@@ -455,7 +452,7 @@ class Burst:
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
         method: str = "mean",
-    ) -> tuple[array, array]:
+    ) -> tuple[Array, Array]:
         """Return background and its standard deviation for each channel
 
         This will flag the data if `badchannels` is given
@@ -467,7 +464,7 @@ class Burst:
 
         Returns
         -------
-        Tuple of 2 arrays
+        Tuple of 2 Arrays
             The background value and standard deviation across all frequency channels
 
         """
@@ -707,7 +704,7 @@ class Burst:
         bkg_method: str = "mean",
         background: tuple[float | dict, float | dict] = None,
         peak: bool = True,
-    ) -> tuple[array, array]:
+    ) -> tuple[Array, Array]:
         data = core.flag(self.data, badchannels)
 
         dms, ratios = core.signal2noise(

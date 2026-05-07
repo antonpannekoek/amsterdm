@@ -26,9 +26,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest ~= 8.4.2",
-    "ruff ~= 0.13.2",
-    "myst-parser ~= 5.0.0",
+    "pytest ~= 9.0",
+    "ruff ~= 0.15.12",
+    "sphinx ~= 9.1",
+    "sphinx-autoapi ~= 3.8",
+    "sphinx-design ~= 0.7.0",
+    "furo ~= 2025.12",
+    "myst-parser ~= 5.0",
 ]
 extra = [
     "jupyter >= 1.1",
@@ -40,7 +44,7 @@ where = ["src"]
 
 [tool.ruff]
 # Ignore the auto-generated file
-include = ["src/amsterdm/*.py", "tests/*.py", "examples/*.py"]
+include = ["src/amsterdm/*.py", "tests/*.py", "examples/*.py", "docs/conf.py"]
 exclude = ["src/amsterdm/version.py"]
 
 [tool.ruff.lint]

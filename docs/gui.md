@@ -1,7 +1,7 @@
-# Graphical User Interface (gui)
+# Graphical User Interface
 
 :::{attention}
-The gui is meant for exploratory analysis of a single burst. It is not meant for accurate analysis or creating precisely configured figures, nor can it (currently) handle multiple bursts.
+The graphical user interface, gui, is meant for exploratory analysis of a single burst. It is not meant for accurate analysis or creating precisely configured figures, nor can it (currently) handle multiple bursts.
 :::
 
 ## Starting

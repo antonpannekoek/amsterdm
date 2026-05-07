@@ -1,4 +1,5 @@
 from astropy import units
+import numpy as np
 
 
 DEFAULT_BACKGROUND_RANGE = [(0, 0.333), (0.666, 1)]
@@ -13,3 +14,7 @@ DMCONST = 1.0 / 2.41e-4 * units.MHz**2 * units.s / DMUNIT
 
 # Seconds in a day
 SOD = 60 * 60 * 24 * units.second
+
+
+# Type alias
+type Array = np.ndarray | np.ma.MaskedArray

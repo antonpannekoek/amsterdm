@@ -8,7 +8,7 @@ pip install -e '.[dev,extra]'
 
 The project uses a single `pyproject.toml` file for all its configuration. Development tools can also be configured through this file. There are no C-extensions (yet), so no `setup.py` or similar is needed.
 
-### Dependencies
+## Dependencies
 
 Dependencies and required versions are listed in `pyproject.toml`. Note that these use the `~=` specifier, to indicate a so-called [compatible release](https://packaging.python.org/en/latest/specifications/version-specifiers/#compatible-release) (some of these may be loosened a bit).
 
@@ -30,6 +30,10 @@ Note that a lot of the gui development has been done with the use of LLMs, and a
 ## Formatting and linting
 
 Formatting and linting is done with [Ruff](https://docs.astral.sh/ruff/). This should be done for every commit, and should pass cleanly. This can be checked with an appropriate `pre-commit` hook (the hook can also format the code, but it may be preferred to manually have a last look at the code after formatting, which a hook won't do. It may be preferred to just run a formatting check in the hook).
+
+## Type hints
+
+There are type-hints throughout the code, but there is currently no type-checking performed. The type-hints serve mainly as documentation, definitely not for strict type checking.
 
 
 ## Testing
