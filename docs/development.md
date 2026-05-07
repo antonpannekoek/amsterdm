@@ -38,6 +38,7 @@ Unit tests can be found in the
 Unit tests are created within the Pytest framework, can be run with a simple `pytest` command (the `[tool.pytest.ini_options]` section in `pyproject.toml` isolates the `tests` directory.
 
 The unit tests cover only a few functions.
+
 ### Continuous Integration (CI)
 
 The CI tests the following:
@@ -45,9 +46,10 @@ The CI tests the following:
 - installation of the package
 - formatting, with `ruff format --check`
 - linting, with `ruff check`
-- running the gui module with the `--help` option; this will not attempt to start the gui, but does test the module and imports
+- running the gui module with the `--help` option; this will not attempt to start the gui, but does test the module and the relevant imports
 - running the unit tests
+- running one of the example plotting scripts, `examples/plots.py`
 
-The Python versions tested are 3.11, 3.12, 3.13 and 3.14.
+The Python versions tested are 3.12, 3.13 and 3.14.
 
 The details can be found in `.github/workflows/ci.yml`.

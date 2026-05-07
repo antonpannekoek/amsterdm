@@ -275,6 +275,7 @@ class Burst:
             return self.header["reltimes"]
         nsamp = self.data.shape[0]
         times = np.arange(nsamp) * self.tsamp
+        times = times.to('s')
         return times
 
     def channel2freq(self, channel):

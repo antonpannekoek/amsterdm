@@ -8,6 +8,8 @@
 
 - [standalone use](scripts.md)
 
+- [base modules](base.md)
+
 - [development](development.md)
 
 - [known issues and to do list](issues.md)
