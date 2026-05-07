@@ -35,7 +35,6 @@ Formatting and linting is done with [Ruff](https://docs.astral.sh/ruff/). This s
 
 There are type-hints throughout the code, but there is currently no type-checking performed. The type-hints serve mainly as documentation, definitely not for strict type checking.
 
-
 ## Testing
 
 Unit tests can be found in the
@@ -57,3 +56,9 @@ The CI tests the following:
 The Python versions tested are 3.12, 3.13 and 3.14.
 
 The details can be found in `.github/workflows/ci.yml`.
+
+## Documentation
+
+Documentation is written in Markdown and parsed with Sphinx, using the MyST parser extension. API documentation is also included with the Sphinx-autoapi extension.
+
+The documentation can be build in the `docs/` directory with `make html` for HTML pages, and `make latexpdf` for a PDF file created via LaTeX; see `make help` for all available options.
