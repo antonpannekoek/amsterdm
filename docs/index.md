@@ -9,6 +9,5 @@ gui
 scripts
 base
 development
-issues
 autoapi/index
 ```

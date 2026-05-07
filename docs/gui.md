@@ -48,7 +48,7 @@ Alternatively, you can click a row on the waterfall plot to flag that particular
 
 
 
-# Issues and to-dos
+## Issues and to-dos
 
 A short list of known issues and future items to implement, specifically for the gui
 
