@@ -27,6 +27,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "README.md"]
 myst_enable_extensions = ["colon_fence"]
 
 autoapi_dirs = ["../src"]
+autoapi_ignore = ["*/version.py"]
 
 
 # -- Options for HTML output -------------------------------------------------
