@@ -2,12 +2,12 @@
 
 ## AmsterDM - a package with utilities for estimating the dispersion measure of fast-radio bursts
 
-## Table of contents
+```{toctree}
+:maxdepth: 2
 
-- [graphical user interface](gui.md)
-
-- [standalone use](scripts.md)
-
-- [development](development.md)
-
-- [known issues and to do list](issues.md)
+gui
+scripts
+base
+development
+autoapi/index
+```

@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from amsterdm.burst import openfile
+from amsterdm.burst import open as openfile
 
 
 def run(filename: str | Path):

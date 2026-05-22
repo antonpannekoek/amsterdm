@@ -1,7 +1,7 @@
-# Graphical User Interface (gui)
+# Graphical User Interface
 
 :::{attention}
-The gui is meant for exploratory analysis of a single burst. It is not meant for accurate analysis or creating precisely configured figures, nor can it (currently) handle multiple bursts.
+The graphical user interface, gui, is meant for exploratory analysis of a single burst. It is not meant for accurate analysis or creating precisely configured figures, nor can it (currently) handle multiple bursts.
 :::
 
 ## Starting
@@ -48,7 +48,7 @@ Alternatively, you can click a row on the waterfall plot to flag that particular
 
 
 
-# Issues and to-dos
+## Issues and to-dos
 
 A short list of known issues and future items to implement, specifically for the gui
 

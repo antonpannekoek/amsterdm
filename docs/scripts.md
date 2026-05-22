@@ -1,3 +1,5 @@
+# Programmatic use
+
 The use of AmsterDM in Python programs can partly be seen from the `examples/plots.py` example program. The utilities in AmsterDM try to be generic, in particular for plotting, but enhancements may be added over time.
 
 The implementation of AmsterDM has a few building blocks:
