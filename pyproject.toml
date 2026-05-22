@@ -28,14 +28,16 @@ dependencies = [
 dev = [
     "pytest ~= 9.0",
     "ruff ~= 0.15.12",
+]
+extra = [
+    "jupyter >= 1.1",
+]
+docs = [
     "sphinx ~= 9.1",
     "sphinx-autoapi ~= 3.8",
     "sphinx-design ~= 0.7.0",
     "furo ~= 2025.12",
     "myst-parser ~= 5.0",
-]
-extra = [
-    "jupyter >= 1.1",
 ]
 
 
