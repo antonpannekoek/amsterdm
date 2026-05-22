@@ -1,0 +1,101 @@
+amsterdm.io.psrfits
+===================
+
+.. py:module:: amsterdm.io.psrfits
+
+.. autoapi-nested-parse::
+
+   Module to read PSR FITS files
+
+   Modified from the Your package,
+   commit 2d202eed13434cce4015ceb1cc796981bdb30d25,
+   https://github.com/thepetabyteproject/your/blob/main/your/formats/psrfits.py
+
+   Originally from the Presto project: https://github.com/scottransom/presto/blob/master/python/presto/psrfits.py
+     May 11, 2010, Patrick Lazarus, May 11, 2010
+     Jul 4, 2016; Mar 25, 2021, Scott Ransom additions for 1-bit and 2-bit data reading
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   amsterdm.io.psrfits.logger
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.io.psrfits.unpack_1bit
+   amsterdm.io.psrfits.unpack_2bit
+   amsterdm.io.psrfits.unpack_4bit
+   amsterdm.io.psrfits.read_subint
+   amsterdm.io.psrfits.read_psrfits
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:function:: unpack_1bit(data: numpy.ndarray) -> numpy.ndarray
+
+   Unpack 1-bit data that has been read in as bytes.
+
+   :param data: array of unsigned 2-bit ints packed into an
+   :type data: np.ndarray
+   :param array of bytes.:
+
+   :returns: unpacked array. The size of this array will
+             be eight times the size of the input data.
+   :rtype: np.ndarray
+
+
+.. py:function:: unpack_2bit(data: numpy.ndarray) -> numpy.ndarray
+
+   Unpack 2-bit data that has been read in as bytes.
+
+   :param data: array of unsigned 2-bit ints packed into an array of bytes.
+   :type data: np.ndarray
+
+   :returns: unpacked array. The size of this array will be four times the size of the input data.
+   :rtype: np.ndarray
+
+
+.. py:function:: unpack_4bit(data: numpy.ndarray) -> numpy.ndarray
+
+   Unpack 4-bit data that has been read in as bytes.
+
+   :param data: array of unsigned 4-bit ints packed into an array of bytes.
+   :type data: np.ndarray
+
+   :returns: unpacked array. The size of this array will be twice the size of the input data.
+   :rtype: np.ndarray
+
+
+.. py:function:: read_subint(table: astropy.table.Table, header: astropy.io.fits.Header, subint: int = 0, apply_weights: bool = True, apply_scales: bool = True, apply_offsets: bool = True, pol: int = 0, npol: int = 1)
+
+   Read a PSRFITS subint from a open pyfits file object.
+   Applys scales, weights, and offsets to the data.
+
+   :param apply_weights: If True, apply weights. (Default: apply weights)
+   :type apply_weights: bool
+   :param apply_scales: If True, apply scales. (Default: apply scales)
+   :type apply_scales: bool
+   :param apply_offsets: If True, apply offsets. (Default: apply offsets)
+   :type apply_offsets: bool
+   :param pol: which polarization to chose
+   :type pol: int
+   :param npol: number of polarizations to return
+   :type npol: int
+
+   :returns: Subint data with scales, weights, and offsets applied in float32 dtype with shape (nsamps,nchan).
+   :rtype: np.ndarray
+
+
+.. py:function:: read_psrfits(file: str | pathlib.Path, memmap: bool = False) -> tuple[astropy.io.fits.Header, numpy.ndarray]
+

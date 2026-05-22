@@ -1,0 +1,703 @@
+amsterdm.core
+=============
+
+.. py:module:: amsterdm.core
+
+.. autoapi-nested-parse::
+
+   This module contains core utilities for handling FRB data
+
+   The input data
+   --------------
+
+   The data is generally assumed to be a two- or three-dimensional NumPy
+   array of "intensity" data (simply the signal). If three-dimensional,
+   the central dimension is assumed to be the polarization channel, and
+   should have a size of 1 (only Stokes I), 2 (e.g. xx and yy) or
+   4. Since there is no header available for the NumPy array to indicate
+   what type of polarization channel(s) are included, the user will have
+   to pay attention to this themselves; for example, if the data is
+   three-dimensional Stokes I, Q, U and V data, it is probably best to
+   change to use only the I data, which is applicable for most cases.
+
+   The first dimension (axis 0) should be the time data, and the last
+   dimension (axis 1 or 2, for two- or three-dimensional data,
+   respectively) should be the channel / frequency data.
+
+   Other inputs often required are the frequencies (`freqs)`, which is a
+   list or array of frequencies, matching one-to-one with the
+   channels. The channels correspond to the indices into the frequency
+   dimension of the data, that is, the last dimension. Frequency
+   generally matches the channels linearly, though the relationship may
+   be in reverse (that is, increasing frequencies follow decreasing
+   channels).
+
+   The unit of frequencies is assumed to be megahertz, MHz.
+
+   The time axis, axis 0, is assumed to be linear, and the first index
+   (index 0) is simply assumed to be 0. The sampling time, `tsamp`, is
+   the time interval and is often required as an input. The unit of the
+   sampling time is assumed to be milliseconds, ms.
+
+   Dispersion measure, `dm`, is often input, in units of MHz^2 cm^3 pc^-1
+   ms; the dispersion constant, K, is set to a fixed value, of 2.41 *
+   10^-7 (Nimmo et al 2022, DOI:10.1038/s41550-021-01569-9), see also the
+   `constants` module. Since this constant, or rather 1/K, is multiplied
+   by `dm`, the latter can be unitless.
+
+
+   Units
+   -----
+
+   As noted above, the units assumed in the code are as follows:
+
+   - time: millisecond
+   - frequency: megahertz
+
+   The current version of AmsterDm does not use units internally. Future
+   versions may use e.g. AstroPy's `units` module for consistency and
+   safer calculations.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.core.downsample
+   amsterdm.core.upsample
+   amsterdm.core.findpeaklc
+   amsterdm.core.findrangelc
+   amsterdm.core.calc_background
+   amsterdm.core.dedisperse
+   amsterdm.core.flag
+   amsterdm.core.calc_intensity
+   amsterdm.core.create_dynspectrum
+   amsterdm.core.calc_lightcurve
+   amsterdm.core.calc_lightcurve_from_waterfall
+   amsterdm.core.bowtie
+   amsterdm.core.signal2noise
+   amsterdm.core.fit_ratios
+
+
+Module Contents
+---------------
+
+.. py:function:: downsample(data: amsterdm.constants.Array, factor: int, remainder: str = 'droptail', method: str = 'mean') -> amsterdm.constants.Array
+
+   Downsample `data` by `factor` along the first axis. Bins can be
+   averaged (default) or summed together.
+
+   If the first axis doesn't match an integer number of `factor`, the
+   remainder can be dropped, either from the start ("drophead") or
+   the end ("droptail"; the default); or the remainder can be added
+   to the last bin ("addtail") or be added to the first bin
+   ("addhead").
+
+   If the number of available bins in `data` is smaller than
+   `factor`, all bins are combined, even when `method` is one of
+   "droptail" or "drophead".
+
+   :param data: Multi-dimensional input data array.
+   :type data: Array
+   :param factor: Factor to downsample by.
+   :type factor: int
+   :param remainder: What to do with the remainder if `factor` does not divide the
+                     first axis size fully, i.e., there is a remainder. The
+                     remainder can be dropped, either from the start ("drophead" of
+                     the data or from the end ("droptail"), measured along the
+                     first axis; or the remainder can be added to the the first
+                     "bin" ("addhead") or the last "bin" ("droptail") along the
+                     first axis.
+   :type remainder: str, default "droptail"
+   :param method: Whether to average ("mean") or sum ("sum") each bin to its
+                  downsampled value.
+   :type method: str, default "mean"
+
+   :returns: **Downsampled array**
+   :rtype: Array
+
+   :raises ValueError: - for incorrect data dimensions (less than 2)
+       - for an incorrect `factor` (less than 1 or non-integer)
+       - for an incorrect `remainder` value
+       - for an incorrect `method`
+
+   .. rubric:: Examples
+
+   >>> a =  np.arange(10)
+   >>> downsample(a, 1)
+   array([0., 1., 2., 3., 4., 5., 6., 7., 8., 9.])
+   >>> downsample(a, 2)
+   array([0.5, 2.5, 4.5, 6.5, 8.5])
+   >>> a = a.reshape(5, 2)
+   >>> a
+   array([[0, 1],
+          [2, 3],
+          [4, 5],
+          [6, 7],
+          [8, 9]])
+   >>> downsample(a, 2)
+   array([[1., 2.],
+          [5., 6.]])
+   >>> downsample(a, 5)
+   array([[4., 5.]])
+   >>> downsample(a, 3)
+   array([[2., 3.]])
+   >>> downsample(a, 3, remainder="drophead")
+   array([[6., 7.]])
+   >>> downsample(a, 3, remainder="addtail")
+   array([[4., 5.]])
+   >>> downsample(a, 5, method="sum")
+   array([[20, 25]])
+
+
+.. py:function:: upsample(data: amsterdm.constants.Array, factor: int) -> amsterdm.constants.Array
+
+   Rebin the data to a higher resolution along the first
+   (sample/time) axis
+
+   Sample bins are simply split into `factor` new bins, with the same
+   value as that of the original bin.
+
+   Under the hood, this simply uses `numpy.repeat` for the first
+   axis.
+
+   :param data: Input array
+   :type data: array
+   :param factor: Factor to upsample by
+   :type factor: int
+
+   :returns: **Upsampled array**
+   :rtype: array
+
+   :raises ValueError: For an incorrect `factor` (less than 1 or non-integer)
+
+   .. rubric:: Examples
+
+   >>> a = np.arange(4)
+   >>> upsample(a, 1)
+   array([0, 1, 2, 3])
+   >>> upsample(a, 2)
+   array([0, 0, 1, 1, 2, 2, 3, 3])
+   >>> upsample(a, 2)
+   array([[0, 1],
+          [0, 1],
+          [2, 3],
+          [2, 3]])
+
+
+.. py:function:: findpeaklc(data: amsterdm.constants.Array, searchrange: tuple[float, float] = (0, 1)) -> int
+
+   Find the peak of the light curve, within an optional search range
+
+   data: the one-dimensional light curve intensity data
+
+   searchrange: a 2-tuple of floats
+       Fractional start and end of the search range
+
+   This simply returns the index of the maximum of `data`, potentially
+   restricted to a section of the data by `searchrange`.
+
+   :param data: The one-dimensional light curve intensity data
+   :type data: array
+   :param searchrange: A 2-tuple of floats indicating the fractional start and end of
+                       the search range
+   :type searchrange: tuple
+
+   :returns: the index into data of the peak
+   :rtype: int
+
+   :raises ValueError: For an invalid search range
+
+
+.. py:function:: findrangelc(data: amsterdm.constants.Array, kappa: float = 10, minkappa: float = 3, window: int = 7, maxiter: int = 10, minvalues: int = 10, searchrange: tuple[float, float] = (0, 1), bkg: tuple[float, float] | None = None) -> tuple[tuple[int, int], tuple[float, float]]
+
+   Find the range of the active light curve.
+
+   Description
+   -----------
+
+   The algorithm first smooths the light curve by using a rolling
+   average with `window` size. No smoothing is done if `window` is
+   negative.
+
+   It then iteratively (up to `maxiter` times):
+     - calculates a mean value
+     - find all values below that mean
+     - removes all non-found values (i.e., outlier peaks)
+
+   Iteration stops when there are less than `minvalues` (default of
+   10) values left or `maxiter` iterations have been reached.
+
+   The remaining data are seen as the background. It takes the
+   indices of these remaining data, and calculates a median and
+   standard deviation from the non-smoothed data for this selection
+   of indices; this is used as a first estimate for the background
+   value and its noise.
+
+   If the `bkg` argument is given (as two values, the median and
+   standard deviation), the above calculation is skipped.
+
+   It then finds all values in the smoothed data that are `kappa`
+   times noise above the background. The relevant indices are
+   combined into sections, and each of these sections are extended on
+   both sides to a `minkappa` times the noise above the
+   background. The latter step is done separately, so that incidental
+   low-sigma spikes above the background are not included, only when
+   adjacent to a larger foreground region.
+
+   If `searchrange` is given, the above calculation is done in the
+   given range.
+
+   These sections then define the foreground area where there is an
+   active light curve.
+
+   The sections are then returned, as a list of 2-tuples with start
+   and end indices.
+
+   :param data: The one-dimensional light curve intensity data
+   :type data: Array
+   :param kappa: Find peaks that are `kappa` times the noise above
+   :type kappa: float, default 10
+   :param minkappa: minimal noise value to be included next to the peak areas
+   :type minkappa: float, default 3
+   :param maxiter: Maximum number of iterations to find an average (by
+                   iteratively removing outlier peaks).
+   :type maxiter: int, default 10
+   :param minvalues: Minimum number of data points to keep when iteratively
+                     determining for an average
+   :type minvalues: int, deafult 10
+   :param window: number of bins to use in the rolling average. Use -1 for no
+                  rolling average
+   :type window: integer, default 7
+   :param searchrange: Fractional start and end of the search range. Note that the
+                       background calculation is odne for the full range.
+   :type searchrange: a 2-tuple of floats, default (0, 1)
+   :param bkg: If known, the background value and its standard deviation can
+               be given here. If not given (bkg=None), the background is
+               calculated as described above.
+   :type bkg: 2-tuple, default None
+
+   :returns: * *A tuple of 2 items*
+             * *- A list of 2-tuples of integers. These represent the start and end indices* -- of sections where the light curve is active.
+             * **- A tuple of two floating point values** (*the estimated*) -- background value and standard deviation
+
+   :raises ValueError: If the data is not one-dimensional
+
+
+.. py:function:: calc_background(data: amsterdm.constants.Array, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, method: str | None = 'mean') -> tuple[amsterdm.constants.Array, amsterdm.constants.Array]
+
+   Return background and its standard deviation for each channel
+
+   Assumes any dispersion correction has already been done, so that
+   the signal is not smeared out across background sections.
+
+   For each individual channel (if any, that is, for
+   three-dimensional data), a background level is estimated. This is
+   done by averaging over the first axis in the `backgroundrange`
+   intervals. The method for the "average" is given by `method`, and
+   can be "mean", "median" or "mode". A standard deviation is
+   calculated from the background (this ignore `method`).
+
+   :param data: data that needs be normalised. Usually contains frequency on the y-axis
+                and time samples on the x-axis.
+   :type data: Array
+   :param backgroundrange: Iterable (e.g., list) of ranges as fractions of the sample
+                           dimension of the data, that is, each iterable item contains a
+                           begin and end fraction of the first dimension of the data that
+                           corresponds to a background area
+
+                           If None, uses the full range for the background calculation.
+   :type backgroundrange: iterable of 2-tuples, or None
+   :param method: method to estimate the background level for each channel.
+
+                  Note that "mode" is not very applicable for continuously distributed
+                  data; and for normally distributed data, it will be the same value as
+                  the median or mean.
+
+                  if `method` is "none" or `None`, no background is calculated, and
+                  a tuple of 2 zero arrays is returned
+   :type method: str, default="mean"
+
+   :returns: The background value  and standard deviation across all frequency channels
+   :rtype: Tuple of 2 Arrays
+
+   :raises ValueError: - in case of an invalid `method`
+       - in case of an invalid background section (outside of (0, 1))
+
+
+.. py:function:: dedisperse(data: amsterdm.constants.Array, freqs: list | numpy.ndarray | astropy.units.Quantity, tsamp: float | astropy.units.Quantity, dm: float | astropy.units.Quantity, reffreq: float | astropy.units.Quantity | None = None, dmconst: astropy.units.Quantity = DMCONST) -> amsterdm.constants.Array
+
+   Dedisperse a two-dimensional data set
+
+   Dedispersion is done using `numpy.roll` for the individual "rows",
+   i.e., per frequency, which shifts (and wraps around) the data per
+   row. The necessary amount to shift for each row is calculated from
+   the reference frqeuency, the frequencies, the dispersion measure
+   `dm` and the dispersion constant; the resulting values are rounded
+   to integers.
+
+   :param data: data containing freq on the y-axis (outer axis) and time on
+                the x-axis (inner axis)
+   :type data: Array
+   :param freqs: Array containing the channel frequencies in units of MHz
+   :type freqs: np.ndarray, Quantity
+   :param tsamp: sampling time in units of milliseconds.
+   :type tsamp: float, Quantity
+   :param dm: Dispersion measure in units of pc / cc.
+   :type dm: float
+   :param reffreq: The reference frequency in MHz, to tie the dedispersion to. If not
+                   given, the maximum of the input frequency range (`freqs`) is used.
+   :type reffreq: float, optional
+   :param dmconst: dispersion constant in units of MHz^2 pc^-1 cm^3 s
+   :type dmconst: float, default=DMCONST
+
+   :returns: **ndata** -- dedispersed data
+   :rtype: Array
+
+   :raises ValueError: if the length of `freqs` doesn't match the first axis of `data`.
+
+
+.. py:function:: flag(data: amsterdm.constants.Array, badchannels: set | list | numpy.ndarray) -> numpy.ma.MaskedArray
+
+   Flag bad channels by masking the corresponding channels rows
+
+   :param data: Input data, two- or three-dimensional. Data is flagged along
+                the last dimension.
+   :type data: Array
+   :param badchannels: List (or set or ndarray) of bad channels to flag. These are
+                       integers indices into the channel/frequency dimension of
+                       `data` (the last dimension/axis). Note that the channel order is
+                       applied: if the frequencies are in reverse order compared to
+                       the frequency (i.e., delta-frequency is negative),
+                       `badchannels` follows the channel order. If not given or
+                       `None`, no channels are flagged.
+
+                       Flagging is done by masking the relevant columns in the `data`
+                       array, turning the data array into a masked array. The bad
+                       channels are assumed to be the same for all polarizations.
+
+                       Existing flagged channels (an existing mask) will be kept, and
+                       combined with the new flags; that is, the flags are or-ed
+                       together.
+   :type badchannels: list, set or array of integers, optional
+
+   :rtype: np.ma.MaskedArray, even if no channels were flagged
+
+
+.. py:function:: calc_intensity(data: dict[str, amsterdm.constants.Array] | amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dm: float, reffreq: float | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] | None = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean') -> tuple[amsterdm.constants.Array, tuple[float, float]]
+
+   Returns the Stokes I / intensity parameter from the xx and yy data
+
+   .. deprecated::
+       use `create_dynspectrum` instead.
+
+   It will optionally correct for bad channels, bandpass and dispersion, if
+   the relevant keyword argument is given.
+
+   Currently, only the xx/yy is supported.
+
+   :param data: This is a single three-dimensional array, or a two-dimensional
+                array, or a dictionary with keys of "xx" and "yy" and
+                two-dimensional arrays (time and frequency) as values. For the
+                three-dimensional array, the second dimension should be the
+                "polarization" channel, in this case only the xx/yy data
+                (i.e., of size 2).
+   :type data: Array or a dict of str, Array
+   :param freqs: Frequencies corresponding to the data
+   :type freqs: ndarray
+   :param tsamp: Sampling time in milliseconds
+   :type tsamp: float
+   :param dm: Dispersion measure. Zero or `None` will skip the dedispersion step
+   :type dm: float
+   :param reffreq: Reference frequency for the dedispersion. If not given (or
+                   `None`), the maximum frequency from the `freqs` array is used.
+   :type reffreq: float, option.
+   :param backgroundrange: Fractional range along the time axis where the background
+                           should be measured. See `calc_background` for details.
+
+                           Set to `None` to not apply a bandpass correction (no background
+                           is calculated).
+
+                           The bandpass correction is calculated separately for each
+                           polarization (if applicable), but with identical
+                           `backgroundrange` s for each polarization channel.
+   :type backgroundrange: iterable of 2-tuple of float, optional
+   :param bkg_method: What method to use for the background calculation. One of
+                      "mean", "median" or "mode". See `calc_background` for details.
+
+                      if `method` is "none" or `None`, no background is calculated, and
+                      a tuple of 2 zero arrays is returned
+   :type bkg_method: str, optional
+
+   :returns: A 2-tuple of the intensity data and the background. The
+             background consists of a 2-tuple of the background mean (its
+             value) and the background standard deviation.
+             If backgroundrange is `None`, the background returned will be (0, 0)
+   :rtype: tuple of Array, (float, float)
+
+
+.. py:function:: create_dynspectrum(data: amsterdm.constants.Array | dict[str, amsterdm.constants.Array], freqs: list | numpy.ndarray | astropy.units.Quantity, tsamp: float | astropy.units.Quantity, dm: float | astropy.units.Quantity, reffreq: float | astropy.units.Quantity | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] | None = DEFAULT_BACKGROUND_RANGE, bkg_method: str | None = 'mean', background: tuple[float | dict, float | dict] | None = None, combine: str = 'mean') -> tuple[amsterdm.constants.Array, tuple[float, float]]
+
+   Returns a dynamical spectrum with the Stokes I / intensity
+   parameter from the input data data array
+
+   The routine corrects for the given dispersion, calculates a
+   background and corrects for the bandpass. Note that it does not
+   flag any bad channels; these should have been flagged in the input
+   data beforehand.
+
+   When multiple polarization channels exist, it performs the above
+   steps for each channel this for each independently, then combines
+   the resulting dynamical spectra together into one dynamical
+   spectrum.
+
+   The data is either
+
+   - two-dimensional, with the first dimension the time samples and
+     the second dimension the frequency channels,
+
+   - or three-dimensional, with the first dimension the time samples,
+     the second dimension the polarization, and the third dimension
+     the frequency channels.
+
+   The data should contain either one or no polarization dimension;
+   in the latter case this is assumed to be Stokes I. Or the data
+   contains four polarization channels, of which the first two are
+   assumed to be xx and yy and will be added together.
+
+   If the dispersion `dm` is set to 0 or None, no dispersion
+   correction is performed. If the `backgroundrange` is set to
+   `None`, no background is calculated and no bandpass correction is
+   performed.
+
+   :param data: This is a single three-dimensional array, or a two-dimensional
+                array, or a dictionary with keys of "xx" and "yy" and
+                two-dimensional arrays (time and frequency) as values. For the
+                three-dimensional array, the second dimension should be the
+                "polarization" channel, in this case only the xx/yy data
+                (i.e., of size 2).
+   :type data: Array or a dict of str, Array
+   :param freqs: Frequencies corresponding to the data
+   :type freqs: ndarray
+   :param tsamp: Sampling time in milliseconds
+   :type tsamp: float
+   :param dm: Dispersion measure. Zero or `None` will skip the dedispersion step
+   :type dm: float
+   :param reffreq: Reference frequency for the dedispersion. If not given (or
+                   `None`), the maximum frequency from the `freqs` array is used.
+   :type reffreq: float, option.
+   :param backgroundrange: Fractional range along the time axis where the background
+                           should be measured. See `calc_background` for details.
+
+                           Set to `None` to not apply a bandpass correction (no background
+                           is calculated).
+
+                           The bandpass correction is calculated separately for each
+                           polarization (if applicable), but with identical
+                           `backgroundrange` s for each polarization channel.
+   :type backgroundrange: iterable of 2-tuple of float, optional
+   :param bkg_method: What method to use for the background calculation. One of
+                      "mean", "median" or "mode". See `calc_background` for details.
+   :type bkg_method: str, optional
+   :param combine: Method to combine individual channels (if applicable). One of "mean",
+                   "average" (same as "mean") or "sum". Default is "mean".
+   :type combine: str
+
+   :returns: Tuple of
+             - two-dimensional array with the Stokes intensity parameter.
+             - background value and standard deviation
+   :rtype: Tuple of Array, (float, float)
+
+   :raises ValueError: - if 'xx' does not exist as a key for the case where data is a dict.
+       - if the length of `freqs` doesn't match the first axis of `data`.
+       - for an invalid `combine` argument.
+
+
+.. py:function:: calc_lightcurve(data: dict[str, amsterdm.constants.Array], freqs: list | numpy.ndarray | astropy.units.Quantity, tsamp: float | astropy.units.Quantity, dm: float | astropy.units.Quantity, reffreq: float | astropy.units.Quantity | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', background: tuple[float | dict, float | dict] | None = None) -> tuple[amsterdm.constants.Array, tuple[float, float]]
+
+   Calculate the light curve by summing across channels, after
+   dedispersion, flagging bad channels and background correction.
+
+   This returns a one-dimensional array of summed intensity versus
+   samples. Optionally, the average standard deviation is returned.
+
+   The light curve is computed from the two-dimensional intensity
+   array, and the arguments are identical to that of
+   ``create_dynspectrum``.
+
+   :param data: array for value.
+   :type data: dict[str, Array]
+   :param freqs: Frequencies corresponding to the data
+   :type freqs: ndarray
+   :param tsamp: Sampling time in milliseconds
+   :type tsamp: float
+   :param dm: Dispersion measure. Zero or `None` will skip the dedispersion step
+   :type dm: float
+   :param reffreq: Reference frequency for the dedispersion. If not given (or
+                   `None`), the maximum frequency from the `freqs` array is used.
+   :type reffreq: float, option.
+   :param backgroundrange: 2-tuples of background fraction intervals.
+
+                           Each interval is a 2-tuple that contains two floating point
+                           values between 0 and 1, which are the fractions of the full
+                           data sample (time-axis) range that contain a background
+                           section. All sections are combined, after which the background
+                           is calculated (using the median or mean value over the
+                           combined area).
+   :type backgroundrange: 2-tuple of background interval, or iterable of
+   :param bkg_method: What method to use for the background calculation. One of
+                      "mean", "median" or "mode". See `calc_background` for details.
+   :type bkg_method: str, optional
+
+   :returns: The one-dimensional light curve, plus the background and its standard deviation
+   :rtype: A 2-tuple of (ndarray, (float, float))
+
+
+.. py:function:: calc_lightcurve_from_waterfall(waterfall: amsterdm.constants.Array) -> amsterdm.constants.Array
+
+   Calculate the light curve from waterfall data
+
+   This is done by simply summing over the second (frequency) axis
+
+   :param waterfall: the dynamical spectrum
+   :type waterfall: ndarray
+
+   :returns: **lightcurve** -- The one-dimensional light curve
+   :rtype: ndarray
+
+   :raises ValueError: If `waterfall` is not two dimensional
+
+
+.. py:function:: bowtie(data: amsterdm.constants.Array, freqs: list | numpy.ndarray | astropy.units.Quantity, tsamp: float | astropy.units.Quantity, dminterval: amsterdm.utils.FInterval | amsterdm.utils.QInterval, reffreq: float | astropy.units.Quantity | None = None, ndm: int = 50, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean') -> numpy.ndarray
+
+   Create the data for a bowtie plot: varying DM versus time/samples
+
+   :param data: data containing freq on the y-axis and time on the x-axis
+   :type data: np.ndarray
+   :param freqs: frequencies corresponding to the channel centers
+   :type freqs: np.ndarray
+   :param tsamp: sampling time interval in seconds
+   :type tsamp: float
+   :param dminterval: range of the dispersion measure: start and stop
+
+                      An average DM is calculated from this range, which is then
+                      used in the calculation of the background: the data is
+                      dedispersed to this mean DM and the background is calculated,
+                      which is used for the bandpass correction.
+   :type dminterval: tuple[float, float]
+   :param reffreq: reference frequency used for dispersion. If None, use the
+                   highest value of the given `freqs`.
+   :type reffreq: float or None
+   :param backgroundrange: 2-tuples of background fraction intervals.
+
+                           Each interval is a 2-tuple that contains two floating point
+                           values between 0 and 1, which are the fractions of the full
+                           data sample (time-axis) range that contain a background
+                           section. All sections are combined, after which the background
+                           is calculated (using the median or mean value over the
+                           combined area).
+
+                           The background is determined with respect to the average DM of
+                           the given `dm` interval.
+   :type backgroundrange: 2-tuple of background interval, or iterable of
+   :param ndm: Number of DM samples along the y-axis
+   :type ndm: int, default=50
+
+   :returns: **bowtie data** -- two dimensional array containing the bowtie-plot data
+   :rtype: ndarray
+
+   :raises ValueError: if the length of `freqs` doesn't match the first axis of `data`.
+
+
+.. py:function:: signal2noise(data: amsterdm.constants.Array, freqs: list | numpy.ndarray | astropy.units.Quantity, tsamp: float | astropy.units.Quantity, dminterval: amsterdm.utils.FInterval | amsterdm.utils.QInterval, dm: float | astropy.units.Quantity | None = None, reffreq: float | None = None, ndm: int = 50, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', background: tuple[float | dict, float | dict] = None, peak: bool = True) -> tuple[amsterdm.constants.Array, amsterdm.constants.Array]
+
+   Calculate peak signal to noise values over a range of DM
+
+   This calculates the light curve (dynamical spectrum summed across
+   the channels) for variying dispersion measures, then obtains the
+   peak intensity for each DM
+
+
+   :param data: data containing freq on the y-axis and time on the x-axis
+   :type data: np.ndarray
+   :param freqs: frequencies corresponding to the channel centers
+   :type freqs: np.ndarray
+   :param tsamp: sampling time interval in seconds
+   :type tsamp: float
+   :param dminterval: interval of the dispersion measure: start and stop
+
+                      An average DM is calculated from this range, which is then
+                      used in the calculation of the background: the data is
+                      dedispersed to this mean DM and the background is calculated,
+                      which is used for the bandpass correction.
+
+                      If `dm` is given, however, this is used as the zeropoint of
+                      the dispersion measure instead.
+   :type dminterval: tuple[float, float]
+   :param dm: An optional specific dispersion measure to use in the
+              background calculation and bandpass correction; if not given,
+              taken from the mid of `dminterval`.
+   :type dm: float, optional
+   :param reffreq: reference frequency used for dispersion. If None, use the
+                   highest value of the given `freqs`.
+   :type reffreq: float or None
+   :param ndm: Number of dm values to split the `dminterval` in to.
+   :type ndm: int, default=50
+   :param backgroundrange: 2-tuples of background fraction intervals.
+
+                           Each interval is a 2-tuple that contains two floating point
+                           values between 0 and 1, which are the fractions of the full
+                           data sample (time-axis) range that contain a background
+                           section. All sections are combined, after which the background
+                           is calculated (using the median or mean value over the
+                           combined area).
+
+                           The background is determined with respect to the average DM of
+                           the given `dm` interval.
+   :type backgroundrange: 2-tuple of background interval, or iterable of
+   :param bkg_method: method to calculate a global background value from the
+                      background intervals.
+   :type bkg_method: string, "median" (default) or "mean"
+   :param background: values
+
+                      The tuple values can also be dicts. In that case, the keys are
+                      the polarization keys, (xx and yy), with the valuse the mean
+                      and standard deviation for those polarization parts. If the
+                      tuple elements are single values, but the input data contains
+                      multiple polarizations, it is assumed that the mean and
+                      standard deviation are the same for xx and yy.
+   :type background: tuple of mean and standard deviation of the background
+   :param peak: Optimize for the peak value. If False, optimize for the
+                overall (integrated) light curve intensity.
+   :type peak: bool, default True
+   :param If the `background` argument is not `None`:
+   :param `backgroundrange` and:
+   :param `bkg_method` are ignored. If `bkg_extra` is also set:
+   :param the returned:
+   :param values identical to the given values.:
+
+   :rtype: Tuple of dm values and (peak) signal to noise ratios, both as a NumPy array.
+
+
+.. py:function:: fit_ratios(dms, ratios) -> tuple[float, float, float]
+
+   Perform a least-squares fit of a Gaussian curve to the
+   signal-to-noise ratios
+
+   Returns the amplitude, mean and standard deviation of the fitted
+   curve
+
+   Note that the input parameters are essentially the two values that
+   `signal2noise` returns.
+
+   :param dms: list or array of dispersion measure values
+   :type dms: list or np.ndarray
+   :param ratios: list or array of signal-to-noise ratios
+   :type ratios: list or np.ndarray
+
+   :returns: The amplitude, mean and standard deviation of the fitted Gaussian
+   :rtype: 3-tuple of floats
+
+

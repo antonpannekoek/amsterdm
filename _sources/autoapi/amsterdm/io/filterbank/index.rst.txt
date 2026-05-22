@@ -1,0 +1,90 @@
+amsterdm.io.filterbank
+======================
+
+.. py:module:: amsterdm.io.filterbank
+
+.. autoapi-nested-parse::
+
+   Module to read Filterbank data
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   amsterdm.io.filterbank.INTSIZE
+   amsterdm.io.filterbank.DOUBLESIZE
+   amsterdm.io.filterbank.HEADER_KEYS
+   amsterdm.io.filterbank.DTYPES
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   amsterdm.io.filterbank.Header
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.io.filterbank.read_string
+   amsterdm.io.filterbank.read_int
+   amsterdm.io.filterbank.read_double
+   amsterdm.io.filterbank.read_header
+   amsterdm.io.filterbank.read_data
+   amsterdm.io.filterbank.read_filterbank
+
+
+Module Contents
+---------------
+
+.. py:data:: INTSIZE
+   :value: 4
+
+
+.. py:data:: DOUBLESIZE
+   :value: 8
+
+
+.. py:data:: HEADER_KEYS
+
+.. py:data:: DTYPES
+
+.. py:class:: Header
+
+   Bases: :py:obj:`dict`
+
+
+   Simple dict-inherited class for the header; helper class
+
+
+.. py:function:: read_string(file, le=True)
+
+   Read a string from a Filterbank header
+
+
+.. py:function:: read_int(file, le=True)
+
+   Read an integer nunmber from a Filterbank header
+
+
+.. py:function:: read_double(file, le=True)
+
+   Read a double precision floating point number from a Filterbank header
+
+
+.. py:function:: read_header(file, le=True)
+
+   Read the header part of a Filterbank file
+
+
+.. py:function:: read_data(file, header, le=True)
+
+.. py:function:: read_filterbank(file, le=True)
+

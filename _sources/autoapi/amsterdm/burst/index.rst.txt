@@ -1,0 +1,475 @@
+amsterdm.burst
+==============
+
+.. py:module:: amsterdm.burst
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   amsterdm.burst.logger
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   amsterdm.burst.Burst
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.burst.open
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:class:: Burst(header, data, dm=0, file=None, copy=False)
+
+   An FRB object
+
+
+   .. py:method:: fromfile(fobj: io.BufferedIOBase)
+      :classmethod:
+
+
+
+   .. py:attribute:: header
+
+
+   .. py:attribute:: data
+
+
+   .. py:attribute:: dm
+      :value: 0
+
+
+
+   .. py:attribute:: _data
+      :value: None
+
+
+
+   .. py:attribute:: _dedispersed
+      :value: None
+
+
+
+   .. py:attribute:: _file
+      :value: None
+
+
+
+   .. py:attribute:: badchannels
+      :value: []
+
+
+
+   .. py:method:: __enter__()
+
+
+   .. py:method:: __exit__(type, value, traceback)
+
+
+   .. py:method:: _fix_missing()
+
+      Try and fix any missing keywords
+
+
+
+   .. py:method:: _set_attrs()
+
+      Set essential attributes from the header information
+
+
+
+   .. py:method:: _flag_channels()
+
+      Mask any invalid data, and set `self.badchannels`
+      if a complete channel is masked
+
+
+
+   .. py:property:: tsamp
+
+
+   .. py:property:: tstart
+
+
+   .. py:property:: fch1
+
+
+   .. py:property:: foff
+
+
+   .. py:property:: fanchor
+
+
+   .. py:property:: freq_offset
+
+      Get the central point offset in the first channel
+
+
+   .. py:property:: cfreq
+
+      Central frequency
+
+
+   .. py:property:: freqs
+
+
+   .. py:property:: times
+
+      Times in MJD
+
+      Use the `reltimes` property for higher resolution timestamps
+
+
+   .. py:property:: reltimes
+
+      Relative times in seconds since start of observation
+
+
+   .. py:method:: channel2freq(channel)
+
+
+   .. py:method:: freq2channel(freq)
+
+
+   .. py:method:: sample2time(sample)
+
+
+   .. py:method:: time2sample(time)
+
+
+   .. py:method:: close()
+
+      Close the underlying file object
+
+
+
+   .. py:method:: trim(times: tuple[float, float] | None = None, freqs: tuple[float, float] | None = None)
+
+      Trim the burst section to `times` and `freqs`
+
+      Data is modified in-place. The data in the file, if it exists,
+      is not touched.
+
+      This action is non-reversible, except by recreating the Burst
+      instance from the original data file.
+
+      :param times: times in milliseconds. If `None`, no trimming is applied
+                    to the time axis.
+      :type times: 2-element tuple or list of floats, with start and end
+      :param freqs: frequencies in MegaHertz. If `None`, no trimming is
+                    applied to the frequency axis.
+      :type freqs: 2-element tuple or list of floats, with start and end
+
+
+
+   .. py:method:: downsample(factor: int = 1, remainder: str = 'droptail', method: str = 'mean')
+
+      Downsample the data by `factor` along the sample/time dimension. Bins
+      can be averaged (default) or summed together. The
+      corresponding sample interval and times property are resampled
+      accordingly.
+
+      If the sample/time dimension doesn't match an integer number
+      of `factor`, the remainder can be dropped, either from the
+      start ("drophead") or the end ("droptail"; the default); or
+      the remainder can be added to the last bin ("addtail") or be
+      added to the first bin ("addhead").
+
+      If the number of available bins in the data is smaller than
+      `factor`, all bins are combined, even when `method` is one of
+      "droptail" or "drophead".
+
+      Raises a `ValueError`
+          - for an incorrect `factor` (less than 1)
+          - for an incorrect remainder value
+          - for an incorrect method
+
+
+
+
+   .. py:method:: upsample(factor: int = 1)
+
+      Rebin the data to a higher resolution along the sample/time
+      dimension. The sampling interval and times property are
+      adjusted accordingly.
+
+      Sample bins are simply split into `factor` new bins, with the same
+      value as that of the original bin.
+
+      Under the hood, this simply uses `numpy.repeat` for the first
+      axis.
+
+
+
+
+   .. py:method:: flag(badchannels: set | list | numpy.ndarray | None = None)
+
+      Flag bad channels
+
+      All given channels, corresponding to the array indices of the
+      frequency axis, are masked along the time samples. This is
+      done by using a NumPy masked array.
+
+      The data is modified internally. The mask, however, is easily
+      reverted or turned off completely
+
+      This operation may turn the data into a MaskedArray, if it
+      wasn't already a MaskedArray.
+
+      If `badchannels` is empty or None, no operation is performed.
+
+
+
+
+   .. py:method:: dedisperse(dm: float | None)
+
+      Dedisperse the data for a given `dm`
+
+      The data is internally dedispersed
+
+      To prevent data from being dedispersed multiple data, a
+      private copy of the original data is kept, and a flag is
+      set. Any future dedispersion will be applied to the copy
+
+
+
+
+   .. py:method:: calc_background(dm: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, method: str = 'mean') -> tuple[amsterdm.constants.Array, amsterdm.constants.Array]
+
+      Return background and its standard deviation for each channel
+
+      This will flag the data if `badchannels` is given
+
+      This will also dedisperses the data (which is intrinsic, so
+      the data will be altered), unless `dm` is 0 or None.
+
+      For details, see `core.calc_background`
+
+      :returns: The background value and standard deviation across all frequency channels
+      :rtype: Tuple of 2 Arrays
+
+
+
+   .. py:method:: dynspectrum(dm: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', background: tuple[float | dict, float | dict] | None = None)
+
+      Returns a dynamical spectrum for a given dispersion measure
+      with the Stokes I / intensity parameter from the input data
+      data array
+
+      The routine flags bad channels, corrects for the given dispersion,
+      calculates a background and corrects for the bandpass.
+
+      When multiple polarization channels (xx and yy) exist, it does
+      this for each independently, then combines the values together.
+
+      It will optionally correct for bad channels, bandpass and dispersion, if
+      the relevant keyword argument is given.
+
+      :param dm: Disperson measure
+
+                 Dedisperse the data for the given value.
+
+                 If set to None, the default value, the internal `dm`
+                 attribute of the burst is used. If this is also None, a
+                 warning is issued and no dedispersion is applied.
+      :type dm: float, optional
+      :param badchannels: means no flagging is done.
+
+                          The bad channels are assumed to be the same for the xx and yy
+                          polarizations, if applicable.
+      :type badchannels: set | list | np.ndarray | None, default=None
+      :param backgroundrange: Interval, or iterable of intervals, as fractions of the
+                              sample dimension of the data, that is, each interval item
+                              contains a start and end fraction of the first dimension
+                              of the data that corresponds to a background area
+      :type backgroundrange: 2-tuple, or iterable of 2-tuples
+      :param bkg_extra: If ``True``, returns an additional object, which is a dict containing
+                        the mean and standard deviation of the background along the channels;
+                        these are one-dimensional arrays
+      :type bkg_extra: bool, default=False
+      :param background: The tuple values can also be dicts. In that case, the keys are
+                         the polarization keys, (xx and yy), with the valuse the mean
+                         and standard deviation for those polarization parts. If the
+                         tuple elements are single values, but the input data contains
+                         multiple polarizations, it is assumed that the mean and
+                         standard deviation are the same for xx and yy.
+      :type background: tuple of mean and standard deviation of the background values
+
+      If the `background` argument is given, `backgroundrange` and
+      `bkg_method` are ignored.
+
+      :returns: * **The dynamical spectrum** (*a two-dimensional array with the*)
+                * *Stokes intensity parameter*
+
+
+
+   .. py:method:: calc_intensity(dm: float | None = None, badchannels: set | list | numpy.ndarray | None = None, datarange: tuple[float, float] | None = None, bkg_extra: bool = False)
+
+      Returns the Stokes I parameter from the xx and yy signals
+
+      It will optionally correct for bad channels, bandpass and
+      dispersion, if the relevant keyword argument is given.
+
+      .. deprecated::
+          use `create_dynspectrum` instead.
+
+      :param badchannels: means no flagging is done.
+      :type badchannels: set, list or array of channel indices to flag. The default of None
+      :param datarange: Fractional range along the time axis, where the actual object
+                        is located. Data outside these columns is used for the
+                        bandpass correction.
+
+                        The default of None indicates no bandpass correction is applied.
+      :type datarange: two-tuple of floating point fractions between 0 and 1
+      :param dm: Disperson measure
+
+                 Dedisperse the data for the given value.
+
+                 If set to None, the default value, the internal `dm`
+                 attribute of the burst is used. If this is also None, a
+                 warning is issued and no dedispersion is applied.
+      :type dm: float, optional
+      :param bkg_extra: If `True`, returns an additional object, which is a dict
+                        containing the mean and standard deviation of the background
+                        along the channels; these are one-dimensional arrays
+      :type bkg_extra: bool, default False
+
+      :returns: * *Two-dimensional array with the Stokes intensity parameter. If*
+                * `bkg_extra` is `True`, returns a two-tuple of (two-dimensional
+                * *array, bkg_info dict).*
+
+
+
+   .. py:method:: lightcurve(dm: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean')
+
+
+   .. py:method:: bowtie(dminterval: amsterdm.utils.FInterval, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ndm: int = 50, reffreq: float | None = None) -> numpy.ndarray
+
+
+   .. py:method:: signal2noise(dminterval: amsterdm.utils.FInterval, dm: float | None = None, reffreq: float | None = None, ndm: int = 50, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', background: tuple[float | dict, float | dict] = None, peak: bool = True) -> tuple[amsterdm.constants.Array, amsterdm.constants.Array]
+
+
+   .. py:method:: waterfall(dm: float | astropy.units.Quantity | None = None, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+      Return a waterfall plot for the burst
+
+      :param See `plot.waterfall` for a description of most parameters.:
+      :param dm: Disperson measure
+
+                 Dedisperse the data for the given value.
+
+                 If set to None, the default value, the internal `dm`
+                 attribute of the burst is used. If this is also None, a
+                 warning is issued and no dedispersion is applied.
+      :type dm: float, optional
+
+      :rtype: A tuple of [Figure, Axes]
+
+
+
+   .. py:method:: lcplot(dm: float | None = None, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+      Return a light curve plot for the burst
+
+      :param See `plot.lightcurve` for a description of most parameters.:
+      :param dm: Disperson measure
+
+                 Dedisperse the data for the given value.
+
+                 If set to None, the default value, the internal `dm`
+                 attribute of the burst is used. If this is also None, a
+                 warning is issued and no dedispersion is applied.
+      :type dm: float, optional
+
+      :rtype: A tuple of [Figure, Axes]
+
+
+
+   .. py:method:: bgplot(dm: float | None = None, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+      Return a background plot for the burst
+
+      This will plot the background, averaged over backgroundrange
+      in the sample dimension. It will plot both the background and
+      its standard deviation.
+
+      :param See `plot.background` for a description of most parameters.:
+      :param dm: Disperson measure
+
+                 Dedisperse the data for the given value.
+
+                 If set to None, the default value, the internal `dm`
+                 attribute of the burst is used. If this is also None, a
+                 warning is issued and no dedispersion is applied.
+      :type dm: float, optional
+
+      :rtype: A tuple of [Figure, Axes]
+
+
+
+   .. py:method:: bowtieplot(dminterval: amsterdm.utils.FInterval, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ndm: int = 50, trange: slice | types.EllipsisType = Ellipsis, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+      Return a bowtie plot for the burst
+
+      :param See `plot.bowtie` for a description of most parameters.:
+
+      :rtype: A tuple of [Figure, Axes]
+
+
+
+   .. py:method:: s2nplot(dminterval: amsterdm.utils.FInterval, reffreq: float | None = None, ndm: int = 50, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', peak: bool = True, fit: bool = False, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+      Return a signal-to-noise plot for the burst
+
+      :param See `plot.signal2noise` for a description of most parameters.:
+
+      :rtype: A tuple of [Figure, Axes]
+
+
+
+   .. py:method:: dmplot(dminterval: amsterdm.utils.FInterval, dm: float | None = None, reffreq: float | None = None, ndm: int = 50, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', peak: bool = True, dm_coherent: float = 0, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+      Plot a combination of a waterfall plot, a light curve and background
+
+      :param See `plot.grid` for a description of most parameters.:
+      :param dm: Disperson measure
+
+                 Plot the data at the given dedispersion.
+
+                 If set to None, the default value, the internal `dm`
+                 attribute of the burst is used. If this is also None, a
+                 warning is issued and no dedispersion is applied.
+
+                 `dminterval` is used for the signal-to-noise plot, while
+                 `dm_coherent` is used to calculate the smearing.
+      :type dm: float, optional
+
+      :rtype: A tuple of [Figure, Axes]
+
+
+
+.. py:function:: open(name: pathlib.Path | str)
+
+   Helper method that returns an open file
+
+   Can be use with a context manager:
+
+       with open(path) as burst:
+           ...
+
+
+

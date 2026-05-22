@@ -1,0 +1,35 @@
+amsterdm.constants
+==================
+
+.. py:module:: amsterdm.constants
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   amsterdm.constants.DEFAULT_BACKGROUND_RANGE
+   amsterdm.constants.DMUNIT
+   amsterdm.constants.DMCONST
+   amsterdm.constants.SOD
+   amsterdm.constants.Array
+
+
+Module Contents
+---------------
+
+.. py:data:: DEFAULT_BACKGROUND_RANGE
+   :value: [(0, 0.333), (0.666, 1)]
+
+
+.. py:data:: DMUNIT
+
+.. py:data:: DMCONST
+
+.. py:data:: SOD
+
+.. py:type:: Array
+   :canonical: np.ndarray | np.ma.MaskedArray
+
+

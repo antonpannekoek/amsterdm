@@ -1,0 +1,45 @@
+amsterdm
+========
+
+.. py:module:: amsterdm
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/amsterdm/burst/index
+   /autoapi/amsterdm/constants/index
+   /autoapi/amsterdm/core/index
+   /autoapi/amsterdm/gui/index
+   /autoapi/amsterdm/io/index
+   /autoapi/amsterdm/plot/index
+   /autoapi/amsterdm/sim/index
+   /autoapi/amsterdm/tools/index
+   /autoapi/amsterdm/utils/index
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.open
+
+
+Package Contents
+----------------
+
+.. py:function:: open(name: pathlib.Path | str)
+
+   Helper method that returns an open file
+
+   Can be use with a context manager:
+
+       with open(path) as burst:
+           ...
+
+
+

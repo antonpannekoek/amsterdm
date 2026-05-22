@@ -1,0 +1,25 @@
+amsterdm.tools.fil2fits
+=======================
+
+.. py:module:: amsterdm.tools.fil2fits
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.tools.fil2fits.run
+   amsterdm.tools.fil2fits.parse_args
+   amsterdm.tools.fil2fits.main
+
+
+Module Contents
+---------------
+
+.. py:function:: run(infile: str | pathlib.Path, outfile: str | pathlib.Path, duplicate_keys: bool = True, remove_keys: bool = False, overwrite: bool = False)
+
+.. py:function:: parse_args()
+
+.. py:function:: main()
+

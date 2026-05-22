@@ -1,0 +1,172 @@
+amsterdm.plot
+=============
+
+.. py:module:: amsterdm.plot
+
+.. autoapi-nested-parse::
+
+   Plotting functions for quick analysis plots
+
+   These functions provide basic plots for analysis of FRBs, such as a
+   waterfall plot (dynamical spectrum), a light curve, a "bowtie" plot, a
+   (peak) signal to noise graph, and an all-in-one plot
+
+   While some options can be set through keyword arguments, the functions
+   aim to provide only basic functionality; for publication-level
+   figures, one will likely want to create their own figures manually.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   amsterdm.plot.logger
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.plot.ensure_figure
+   amsterdm.plot.waterfall
+   amsterdm.plot.lightcurve
+   amsterdm.plot.background
+   amsterdm.plot.bowtie
+   amsterdm.plot.signal2noise
+   amsterdm.plot.grid
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:function:: ensure_figure(ax: matplotlib.axes.Axes, figsize: tuple[float, float] = (12, 8)) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+.. py:function:: waterfall(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dm: float | astropy.units.Quantity = 0, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', background: tuple[float, float] | None = None, return_image: bool = False, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] | tuple[tuple[matplotlib.figure.Figure, matplotlib.axes.Axes], None]
+
+   Return a waterfall plot (dynamical spectrum)
+
+   The input data has to be a two-dimensional array (it can be a
+   masked array). The data will be flagged for bad channels,
+   dedispersed and bandpass corrected from the (dedispersed)
+   background.
+
+   Note that the data is copied, so flagging and dedispersing does
+   not alter the input data. This may be a an issue for large data
+   sets.
+
+   :param For most of the arguments:
+   :param see `core.create_dynspectrum`. Since:
+   :param the input data has be two-dimensional:
+   :param options handling:
+   :param polarization data are not available.:
+   :param options: The following options related to plotting are available
+
+                   - vmin, vmax: float. Set the range of the data to be included
+                     for the colormap (see also Matplotlib's vmin and vmax), in
+                     fractions. Default is vmin=0.1, vmax=0.9.
+
+                   - cmap: String. Color map to use. Default is "viridis".
+
+                   - cbar: Bool. Whether to draw a color bar on the side
+
+                   - fillmask: String. How to fill the masked values (flagged
+                     channels). Default is NaN, which tends to be
+                     background/transparanet values in Matplotlib. "mean" or
+                     "median" will replace masked values with the mean or median
+                     value of the non-masked data, respectively. You can also
+                     suply a function that takes the full data array as input
+                     (i.e., two-dimensional masked data) and returns a single
+                     value; so using `np.median` is the same as "median" in this
+                     case. Finally, you can give a single float or integer as
+                     replacement value.
+
+                   - xlabel, ylabel, x2label, y2label: Strings. The axis labels,
+                     for the x and y axes. The x2 and y2 labels are for the
+                     "derived" values: times and frequencies. Defaults are
+                     "samples", "channels", "time (milliseconds)" and "frequency
+                     (MHz)", respectively.
+
+                   - origin: String. Where to place the highest frequency. This
+                     relates to the 'origin' parameter from imshow. Default is
+                     "upper".
+
+                   - logscale: Bool. Whether to use apply a log scale to the
+                     input data. Default is False.
+   :type options: dict, optional
+
+
+.. py:function:: lightcurve(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dm: float | astropy.units.Quantity = 0, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+   Create a light curve plot by summing across channels
+
+   The data is corrected for dispersion and background first, taking into account any bad channels.
+
+
+
+.. py:function:: background(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dm: float | astropy.units.Quantity = 0, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, method: str = 'mean', ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+   Create a background plot of the mean and std-dev of the background
+
+   This plots the background, *after* dedispersion.
+
+   Parameters:
+
+   ax: None, or a list or tuple of two axis
+       The first ax item is used for the mean background
+       The second ax item is used for the std-dev background
+
+
+.. py:function:: bowtie(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dminterval: amsterdm.utils.FInterval, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ndm: int = 50, trange: slice | types.EllipsisType = Ellipsis, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+   Create a bowtie plot: varying DM versus time/samples
+
+   :param dminterval: range of the dispersion measure: start and end
+
+                      A central DM is calculated from this range, and is the
+                      arithmetic mean of the start and end dispersion values.
+   :type dminterval: tuple[float, float] (FInterval)
+   :param badchannels: numbers of channels to flag/ignore
+   :type badchannels: set | list | np.ndarray | None, default=None
+   :param backgroundrange: 2-tuples of background fraction intervals.
+
+                           Each interval is a 2-tuple that contains two floating point
+                           values between 0 and 1, which are the fractions of the full
+                           data sample (time-axis) range that contain a background
+                           section. All sections are combined, after which the background
+                           is calculated (using the median or mean value over the
+                           combined area).
+
+                           The background is calculcated once for the central DM (thus for
+                           ``(dm[0] + dm[1]) / 2``), so the datarange should be for the particular
+                           DM; all other DM samples use the same background value.
+   :type backgroundrange: 2-tuple of background interval, or iterable of
+   :param ndm: Number of DM samples along the y-axis
+   :type ndm: int, default=50
+   :param reffreq: reference frequency used for dispersion. If None, use the
+                   highest value of the given `freqs`.
+   :type reffreq: float or None
+   :param ax: If given, use this axes to draw the graph on
+   :type ax: Matplotlib Axes, default=None
+
+
+.. py:function:: signal2noise(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dminterval: amsterdm.utils.FInterval, reffreq: float | None = None, ndm: int = 50, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', peak: bool = True, fit: bool = False, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+.. py:function:: grid(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dm: float, dminterval: amsterdm.utils.FInterval, reffreq: float | None = None, ndm: int = 50, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', peak: bool = True, peak_interval: amsterdm.utils.FInterval | None = None, dm_coherent: float = 0, foff: float = 0, cfreq: float = 1, tstart: float | None = None, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+   Plot multiple DM figures in one grid
+
+   :param dm: Dispersion measure used to create the plots. For plots that
+              require an interval, like the signal-to-noise plot,
+              `dminterval` is used instead.
+   :type dm: float
+   :param dm_coherent: The coherent dm. Often the initial dispersion measure
+                       applied. Used to calculate the smearing; the `dm` argument is
+                       used for the actual plots. Default 0.
+   :type dm_coherent: float, optional
+
+

@@ -1,0 +1,32 @@
+amsterdm.io.core
+================
+
+.. py:module:: amsterdm.io.core
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.io.core.read_fileformat
+
+
+Module Contents
+---------------
+
+.. py:function:: read_fileformat(fobj)
+
+   Returns the file type of the file object `fobj`
+
+   Reads the first 80 bytes from a (binary) file object to determine
+   the file signature (the "magic number"). Recognized format are
+   Filterbank, FITS (assumed PSRFITS) and HDF 5 (e.g. CHIME
+   waterfall).
+
+   Returns a string with one of "filterbank-le", "filterbank-be"
+   (Filterbank little- and big-endian), "psrfits" or "hdf5" (all
+   lowercase).
+
+
+

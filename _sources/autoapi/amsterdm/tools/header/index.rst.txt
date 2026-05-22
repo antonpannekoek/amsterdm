@@ -1,0 +1,25 @@
+amsterdm.tools.header
+=====================
+
+.. py:module:: amsterdm.tools.header
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.tools.header.run
+   amsterdm.tools.header.parse_args
+   amsterdm.tools.header.main
+
+
+Module Contents
+---------------
+
+.. py:function:: run(filename: str | pathlib.Path)
+
+.. py:function:: parse_args()
+
+.. py:function:: main()
+

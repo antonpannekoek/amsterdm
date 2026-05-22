@@ -1,0 +1,19 @@
+amsterdm.io.fits
+================
+
+.. py:module:: amsterdm.io.fits
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.io.fits.read_fits
+
+
+Module Contents
+---------------
+
+.. py:function:: read_fits(file)
+

@@ -1,0 +1,36 @@
+amsterdm.io.h5
+==============
+
+.. py:module:: amsterdm.io.h5
+
+.. autoapi-nested-parse::
+
+   Module to read a HDF 5 file with FRB data
+
+   Implemented for CHIME waterfall data files
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   amsterdm.io.h5.logger
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.io.h5.read_hdf5
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:function:: read_hdf5(filename: str | pathlib.Path) -> tuple[dict, numpy.ndarray]
+

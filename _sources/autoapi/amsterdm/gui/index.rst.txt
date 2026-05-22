@@ -1,0 +1,260 @@
+amsterdm.gui
+============
+
+.. py:module:: amsterdm.gui
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   amsterdm.gui.SOD
+   amsterdm.gui.COLORMAPS
+   amsterdm.gui.DM_ZOOM_LEVELS
+   amsterdm.gui.args
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   amsterdm.gui.BurstPlot
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.gui.main
+   amsterdm.gui.parse_args
+
+
+Module Contents
+---------------
+
+.. py:data:: SOD
+   :value: 86400
+
+
+.. py:data:: COLORMAPS
+   :value: ['viridis', 'plasma', 'inferno', 'magma', 'cividis', 'fire', 'gray']
+
+
+.. py:data:: DM_ZOOM_LEVELS
+
+.. py:class:: BurstPlot(burst, invert=True, width=800, **kwargs)
+
+   Bases: :py:obj:`param.Parameterized`
+
+
+   A base class for creating Parameterized objects.
+
+   The ``Parameterized`` base class enables two main use cases:
+
+   - Defining rich and run-time validated class and instance attributes,
+     called :class:`Parameter`.
+   - Watching :class:`Parameter` for changes and reacting through callbacks.
+
+   This makes it well-suited for robust, maintainable code bases and
+   particularly useful in interactive applications requiring reactive behavior.
+
+   To construct an instance, optional Parameter values must be supplied as
+   keyword arguments (``param_name=value``), overriding their default values
+   for this one instance. Any parameters not explicitly set will retain their
+   defined default values.
+
+   If no ``name`` parameter is provided, the instance's ``name`` attribute will
+   default to an identifier string composed of the class name followed by
+   an incremental 5-digit number.
+
+   .. attribute:: name
+
+      Class/instance name.
+
+      :type: str
+
+   .. attribute:: param
+
+      ``.param`` namespace.
+
+      :type: Parameters
+
+   .. rubric:: References
+
+   https://param.holoviz.org/user_guide/Parameters.html.
+
+   .. rubric:: Examples
+
+   Defining a class with two :class:`Parameter`s and a callback run on changes
+   to ``my_number``.
+
+   >>> import param
+   >>> class MyClass(param.Parameterized):
+   ...     my_number = param.Number(default=1, bounds=(0, 10), doc='A numeric value')
+   ...     my_list = param.List(default=[1, 2, 3], item_type=int, doc='A list of integers')
+   ...
+   ...     @param.depends('my_number', watch=True)
+   ...     def callback(self):
+   ...         print(f'my_number new value: {self.my_number}')
+
+   Parameters are available as class attributes:
+
+   >>> MyClass.my_number
+   1
+
+   >>> obj = MyClass(my_number=2)
+
+   Constructor arguments override default values and default :class:`Parameter`
+   values are set unless overridden:
+
+   >>> obj.my_number
+   2
+   >>> obj.my_list
+   [1, 2, 3]
+
+   :class:`Parameter` values are dynamically validated:
+
+   >>> obj.my_number = 5  # Valid update within bounds.
+
+   Attempting to set an invalid value raises an error:
+
+   >>> try:
+   >>>     obj.my_number = 15
+   >>> except Exception as e:
+   >>>     print(repr(e))
+   ValueError: Number parameter 'MyClass.my_number' must be at most 10, not 15.
+
+   Updating ``my_number`` executes the callback method:
+
+   >>> obj.my_number = 7
+   my_number new value: 7
+
+
+   .. py:attribute:: dm
+
+
+   .. py:attribute:: dm_zoom
+
+
+   .. py:attribute:: colormap
+
+
+   .. py:attribute:: cmin
+
+
+   .. py:attribute:: cmax
+
+
+   .. py:attribute:: logimage
+
+
+   .. py:attribute:: loglc
+
+
+   .. py:attribute:: trunclc
+
+
+   .. py:attribute:: badchanlist
+
+
+   .. py:attribute:: update_plot
+
+
+   .. py:attribute:: sample_reset
+
+
+   .. py:attribute:: bkg_left
+
+
+   .. py:attribute:: bkg_right
+
+
+   .. py:attribute:: bkg_reset
+
+
+   .. py:attribute:: burst
+
+
+   .. py:attribute:: tap
+
+
+   .. py:attribute:: invert
+      :value: True
+
+
+
+   .. py:attribute:: width
+      :value: 800
+
+
+
+   .. py:attribute:: range_stream
+
+
+   .. py:attribute:: ntotal
+
+
+   .. py:attribute:: _x_viewrange
+      :value: (None, None)
+
+
+
+   .. py:attribute:: dm_slider
+
+
+   .. py:method:: _on_tap(event)
+
+
+   .. py:method:: _update_dm_slider(event)
+
+      Update the DM slider range based on the DM slider zoom selector
+
+
+
+   .. py:method:: _reset_bkg_range(_)
+
+
+   .. py:method:: _reset_sample_range(_)
+
+
+   .. py:method:: add_physical_axes(plot, element)
+
+
+   .. py:method:: move_colorbar(plot, element)
+
+      Move the colorbar after (to the right of) the secondary y-axis
+
+
+
+   .. py:method:: _init_data()
+
+
+   .. py:method:: _calc_data()
+
+
+   .. py:method:: _update_data(*args, **kwargs)
+
+
+   .. py:method:: plot_lc(x_range=None, y_range=None)
+
+
+   .. py:method:: plot_waterfall(x_range=None, y_range=None)
+
+
+   .. py:method:: plot_bkg()
+
+
+   .. py:method:: panel()
+
+
+.. py:function:: main(filename)
+
+.. py:function:: parse_args()
+
+.. py:data:: args
+   :value: None
+
+

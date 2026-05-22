@@ -1,0 +1,22 @@
+amsterdm.sim
+============
+
+.. py:module:: amsterdm.sim
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.sim.disperse
+   amsterdm.sim.simulate
+
+
+Module Contents
+---------------
+
+.. py:function:: disperse(data: numpy.ndarray, dm: float, reffreq: float, freqs: numpy.ndarray, tsamp: float, dmconst: float = DMCONST)
+
+.. py:function:: simulate(peaks, t0s, widths, dm, dmreffreq, nsamples, nchannels, freq0, dfreq, time0, tsamp, xy=None, bandpass=None, background=(5, 1), seed=None)
+

@@ -1,0 +1,120 @@
+amsterdm.utils
+==============
+
+.. py:module:: amsterdm.utils
+
+.. autoapi-nested-parse::
+
+   Utility functions and classes
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   amsterdm.utils.FInterval
+   amsterdm.utils.QInterval
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.utils.mask2d
+   amsterdm.utils.coord2deg
+   amsterdm.utils.symlog
+   amsterdm.utils.symlog10
+
+
+Module Contents
+---------------
+
+.. py:class:: FInterval
+
+   Bases: :py:obj:`NamedTuple`
+
+
+   Simple tuple to hold a floating point interval
+
+   Note that there is no restriction that the two values are not the
+   same and start is smaller than end.
+
+
+
+   .. py:attribute:: start
+      :type:  float
+
+
+   .. py:attribute:: end
+      :type:  float
+
+
+.. py:class:: QInterval
+
+   Bases: :py:obj:`NamedTuple`
+
+
+   Simple tuple to hold an interval of two quantities
+
+   Note that there is no restriction that the two quantities are not the
+   same and start is smaller than end.
+
+
+
+   .. py:attribute:: start
+      :type:  astropy.units.Quantity
+
+
+   .. py:attribute:: end
+      :type:  astropy.units.Quantity
+
+
+.. py:function:: mask2d(data, rowids)
+
+   Mask rows in a two-dimensional array
+
+
+.. py:function:: coord2deg(coord, factor=1)
+
+   Convert a Filterbank coordinate format to degrees
+
+
+.. py:function:: symlog(data: numpy.ndarray) -> numpy.ndarray
+
+   Convert `data` to a symmetric log, with negative values
+   converted to negative log
+
+   Converts `-x to -log(x)`.
+
+   `symlog` works like Matplotlib's "symlog" scale, and similarly, it
+   should be used mainly for visualization, not for real data
+   calculations.
+
+   :rtype: The symlog value of the input data.
+
+   .. rubric:: References
+
+   https://doi.org/10.1088%2F0957-0233%2F24%2F2%2F027001
+
+
+.. py:function:: symlog10(data: numpy.ndarray) -> numpy.ndarray
+
+   Convert `data` to a symmetric log10, with negative values
+   converted to -log10
+
+   Converts `-x to -log(x)`.
+
+   `symlog10` works like Matplotlib's "symlog" scale, and similarly, it
+   should be used mainly for visualization, not for real data
+   calculations.
+
+   :rtype: The symlog value of the input data.
+
+   .. rubric:: References
+
+   https://doi.org/10.1088%2F0957-0233%2F24%2F2%2F027001
+
+
