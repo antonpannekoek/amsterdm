@@ -9,6 +9,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 
 jobs:
@@ -47,4 +50,8 @@ jobs:
           python examples/simulate.py
           python examples/plots.py -h
           # Run with the just created file
-          python examples/plots.py amsterdm-sim.fits --back 0.4 1 --dm 123.45 --plots all --s2n-range -0.1 0.1 10
+          python examples/plots.py amsterdm-sim.fits \
+            --back 0.4 1 \
+            --dm 123.45 \
+            --plots all \
+            --s2n-range -0.1 0.1 10
