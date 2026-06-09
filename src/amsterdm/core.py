@@ -1428,7 +1428,7 @@ def bowtie(
     ndm: int = 50,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "mean",
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
     """Create the data for a bowtie plot: varying DM versus time/samples
 
     Parameters
@@ -1473,8 +1473,10 @@ def bowtie(
 
     Returns
     -------
-    bowtie data: ndarray
-        two dimensional array containing the bowtie-plot data
+    tuple of [np.ndarray, np.ndarray]
+        - first item: bowtie data
+          two dimensional array containing the bowtie-plot data
+        - second item: dm values matching the y-axis of the bowtie data
 
     Raises
     ------
@@ -1492,10 +1494,11 @@ def bowtie(
         tsamp, freqs, reffreq, None, dminterval
     )
 
-    dm_center = (dminterval[0] + dminterval[1]) / 2
-
+    dmcenter = (dminterval[0] + dminterval[1]) / 2
+    # Dedisperse to the central frequency
+    # This will also background-correct / normalize the spectrum
     spectra = _create_dynspectra(
-        data, freqs, tsamp, dm_center, reffreq, backgroundrange, bkg_method
+        data, freqs, tsamp, dmcenter, reffreq, backgroundrange, bkg_method
     )
 
     xx = spectra["xx"][0]
@@ -1507,20 +1510,19 @@ def bowtie(
     # dmrange is relative to the mean DM
     dmrange = np.linspace(dminterval[0], dminterval[1], ndm) - dm_center
 
+    # Dedisperse the corrected spectrum across dmrange;
+    # dmrange is relative to dmcenter
+    dms = np.linspace(dminterval[0], dminterval[1], ndm) - dmcenter
     tie = []
-    for dm in dmrange:
-        xxdd = dedisperse(xx, freqs, tsamp, dm)
-        if yy is not None:
-            yydd = dedisperse(yy, freqs, tsamp, dm)
-            stokesI = xxdd + yydd
-        else:
-            stokesI = xxdd
-        stokesI = np.ma.filled(stokesI, np.nan)
-        lc = np.nansum(stokesI, axis=1)
+    for dm in dms:
+        datadd = dedisperse(data, freqs, tsamp, dm)
+        # Add all data into a light curve, taking care of NaNs
+        datadd = np.ma.filled(datadd, np.nan)
+        lc = np.nansum(datadd, axis=1)
         tie.append(lc)
     tie = np.vstack(tie)
 
-    return tie
+    return tie, dms + dmcenter
 
 
 def signal2noise(
@@ -1635,11 +1637,11 @@ def signal2noise(
     )
 
     if dm is None:
-        dm_center = (dminterval[0] + dminterval[1]) / 2
+        dmcenter = (dminterval[0] + dminterval[1]) / 2
     else:
-        dm_center = dm
+        dmcenter = dm
     spectra = _create_dynspectra(
-        data, freqs, tsamp, dm_center, reffreq, backgroundrange, bkg_method
+        data, freqs, tsamp, dmcenter, reffreq, backgroundrange, bkg_method
     )
     waterfall = spectra["xx"][0]
     lightcurve = np.ma.filled(waterfall, 0).sum(axis=1)
@@ -1656,7 +1658,7 @@ def signal2noise(
     lcstd = lightcurve[idx_bkg].std()
 
     # dms is relative to the mean DM
-    dms = np.linspace(dminterval[0], dminterval[1], ndm) - dm_center
+    dms = np.linspace(dminterval[0], dminterval[1], ndm) - dmcenter
 
     logger.info(
         "Iterating over %d DMs from %.4f to %.4f", len(dms), dms[0].value, dms[-1].value
@@ -1671,7 +1673,7 @@ def signal2noise(
         ratio = value / lcstd
         ratios.append(ratio)
 
-    dms += dm_center
+    dms += dmcenter
 
     if has_unit:
         return dms, np.asarray(ratios)

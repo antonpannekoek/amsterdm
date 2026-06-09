@@ -554,7 +554,7 @@ def test_bowtie():
     data = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]])
     freqs = np.array([1.0, 1.1, 1.2])
     dminterval = [9, 11]
-    result = core.bowtie(data, freqs, tsamp=0.1, dminterval=dminterval, ndm=5)
+    result, dms = core.bowtie(data, freqs, tsamp=0.1, dminterval=dminterval, ndm=5)
     expected = np.array(
         [
             [-1.0, -4.33333333, 0.33333333, 5.0],
@@ -564,10 +564,12 @@ def test_bowtie():
             [-5.0, -0.33333333, 4.33333333, 1.0],
         ]
     )
+    assert result.shape[0] == len(dms)
     assert_allclose(result, expected)
+    assert_allclose(dms, np.linspace(9, 11, 5) * units.pc / units.cm**3)
 
     freqs *= units.MHz
-    result = core.bowtie(
+    result, _ = core.bowtie(
         data, freqs, tsamp=0.1 * units.ms, dminterval=dminterval * DMUNIT, ndm=5
     )
     assert_allclose(result, expected)

@@ -378,7 +378,7 @@ def bowtie(
 
     if badchannels is not None:
         data = core.flag(data, badchannels)
-    data = core.bowtie(
+    data, _ = core.bowtie(
         data,
         freqs,
         tsamp,
