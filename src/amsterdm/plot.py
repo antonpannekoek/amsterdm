@@ -24,6 +24,7 @@ from __future__ import annotations  # for Burst type
 
 import logging
 from types import EllipsisType
+import warnings
 
 from astropy.time import Time
 from astropy.units import Quantity
@@ -147,17 +148,20 @@ def waterfall(
     if badchannels is None:
         badchannels = []
 
-    vmin = options.get("vmin", 0.1)
-    vmax = options.get("vmax", 0.9)
-    cmap = options.get("cmap", "viridis")
-    cbar = options.get("cbar", True)
-    fillmask = options.get("fillmask", "nan")
-    xlabel = options.get("xlabel", "samples")
-    x2label = options.get("xlabel", "time (milliseconds)")
-    ylabel = options.get("ylabel", "channels")
-    y2label = options.get("ylabel", "frequency (MHz)")
-    origin = options.get("origin", "upper")
-    logscale = options.get("logscale", False)
+    opts = options.copy()
+    vmin = opts.pop("vmin", 0.1)
+    vmax = opts.pop("vmax", 0.9)
+    cmap = opts.pop("cmap", "viridis")
+    cbar = opts.pop("cbar", True)
+    fillmask = opts.pop("fillmask", "nan")
+    xlabel = opts.pop("xlabel", "samples")
+    x2label = opts.pop("xlabel", "time (milliseconds)")
+    ylabel = opts.pop("ylabel", "channels")
+    y2label = opts.pop("ylabel", "frequency (MHz)")
+    origin = opts.pop("origin", "upper")
+    logscale = opts.pop("logscale", False)
+    if opts:
+        warnings.warn(f"unknown option(s): {opts}")
 
     fig, ax = ensure_figure(ax)
 
