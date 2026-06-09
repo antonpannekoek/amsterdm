@@ -274,6 +274,7 @@ def _format_data(
         else:  # two-dimensional data
             if poltype and poltype != "i":
                 raise ValueError("incorrect polarization type for two-dimensional data")
+            # Turn the 2D data into 3D data for consistency
             fmtdata = data.reshape(shape[0], 1, shape[1])
             poltype = "i"
 
@@ -1490,6 +1491,11 @@ def bowtie(
             "`freqs` length does not match the last axis of the data array"
         )
 
+    data, poltype = _format_data(data)
+    data = np.squeeze(data)
+    if data.ndim != 2:
+        raise ValueError("data contains multiple polarization channels")
+
     (tsamp, freqs, reffreq, _, dminterval) = ensure_quantities(
         tsamp, freqs, reffreq, None, dminterval
     )
@@ -1501,14 +1507,7 @@ def bowtie(
         data, freqs, tsamp, dmcenter, reffreq, backgroundrange, bkg_method
     )
 
-    xx = spectra["xx"][0]
-    yy = spectra["yy"][0]
-
-    # xx and yy are flagged, bandpass-corrected and dedispersed at the mean DM
-    # This provides the starting point for the iteration through dmrange
-
-    # dmrange is relative to the mean DM
-    dmrange = np.linspace(dminterval[0], dminterval[1], ndm) - dm_center
+    data = spectra["xx"][0]  # There is only one channel
 
     # Dedisperse the corrected spectrum across dmrange;
     # dmrange is relative to dmcenter
