@@ -193,7 +193,7 @@ def waterfall(
         stokesI = symlog(stokesI)
 
     vmin, vmax = np.nanpercentile(stokesI, (vmin * 100, vmax * 100))
-
+    origin = "lower"
     image = ax.imshow(
         stokesI.T, aspect="auto", origin=origin, cmap=cmap, vmin=vmin, vmax=vmax
     )
@@ -448,13 +448,21 @@ def bowtie(
         vmax=vmax,
     )
 
-    divider = make_axes_locatable(ax)
-    if cbar is True or cbar.lower() == "right":
+    # Create extra space for the colorbar,
+    # so it doesn't run into the right-margin tick labels
+    cbar = "" if cbar is False else ("right" if cbar is True else cbar)
+    if cbar.lower() == "right":
+        divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
-    elif cbar.lower() == "left":
-        cax = divider.append_axes("left", size="5%", pad=0.15)
-    if cbar:
         ax.figure.colorbar(image, cax=cax, orientation="vertical")
+    elif cbar.lower() == "left":
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("left", size="5%", pad=0.15)
+        ax.figure.colorbar(image, cax=cax, orientation="vertical")
+    elif not cbar:
+        pass
+    else:
+        warnings.warn(f"unknown `cbar` value {cbar}")
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
