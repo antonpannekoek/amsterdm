@@ -944,6 +944,8 @@ def flag(data: Array, badchannels: set | list | np.ndarray) -> np.ma.MaskedArray
     """
 
     mdata = np.ma.array(data)
+    if badchannels is None:
+        return mdata
 
     # Allow a set of bad channels as input, but we can't index
     # an array with a set, so convert to a list
