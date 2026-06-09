@@ -43,7 +43,7 @@ logger = logging.getLogger(__package__)
 
 
 def ensure_figure(
-    ax: Axes, figsize: tuple[float, float] = (12, 8)
+    ax: Axes | None, figsize: tuple[float, float] = (12, 8)
 ) -> tuple[Figure, Axes]:
     if not ax:
         # Create a new figure
@@ -54,6 +54,19 @@ def ensure_figure(
     else:
         figure = ax.figure
     return figure, ax
+
+
+def set_title_labels(kwargs, defaults, ax):
+
+    title = kwargs.get("title", defaults.get("title", ""))
+    if title:
+        ax.set_title(title)
+    xlabel = kwargs.get("xlabel", defaults.get("xlabel", ""))
+    if xlabel:
+        ax.set_xlabel(xlabel)
+    ylabel = kwargs.get("ylabel", defaults.get("ylabel", ""))
+    if ylabel:
+        ax.set_ylabel(ylabel)
 
 
 def waterfall(
