@@ -7,3 +7,6 @@
 
 # Ignore the Setuptools-scm version file
 src/amsterdm/version.py
+
+# Sphinx build directory
+docs/_build
