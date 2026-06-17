@@ -357,7 +357,7 @@ Module Contents
    .. py:method:: lightcurve(dm: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean')
 
 
-   .. py:method:: bowtie(dminterval: amsterdm.utils.FInterval, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ndm: int = 50, reffreq: float | None = None) -> numpy.ndarray
+   .. py:method:: bowtie(dminterval: amsterdm.utils.FInterval, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ndm: int = 50, reffreq: float | None = None) -> tuple[numpy.ndarray, numpy.ndarray]
 
 
    .. py:method:: signal2noise(dminterval: amsterdm.utils.FInterval, dm: float | None = None, reffreq: float | None = None, ndm: int = 50, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', background: tuple[float | dict, float | dict] = None, peak: bool = True) -> tuple[amsterdm.constants.Array, amsterdm.constants.Array]

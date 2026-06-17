@@ -31,6 +31,7 @@ Functions
 .. autoapisummary::
 
    amsterdm.plot.ensure_figure
+   amsterdm.plot.set_title_labels
    amsterdm.plot.waterfall
    amsterdm.plot.lightcurve
    amsterdm.plot.background
@@ -44,7 +45,9 @@ Module Contents
 
 .. py:data:: logger
 
-.. py:function:: ensure_figure(ax: matplotlib.axes.Axes, figsize: tuple[float, float] = (12, 8)) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+.. py:function:: ensure_figure(ax: matplotlib.axes.Axes | None, figsize: tuple[float, float] = (12, 8)) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+.. py:function:: set_title_labels(kwargs, defaults, ax)
 
 .. py:function:: waterfall(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dm: float | astropy.units.Quantity = 0, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', background: tuple[float, float] | None = None, return_image: bool = False, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] | tuple[tuple[matplotlib.figure.Figure, matplotlib.axes.Axes], None]
 

@@ -1,0 +1,162 @@
+amsterdm.structure
+==================
+
+.. py:module:: amsterdm.structure
+
+.. autoapi-nested-parse::
+
+   Module to compute a best estimate for the dispersion measure, including an error estimate.
+
+   Following the publication of Sutinjo et al, 2023,
+   10.3847/1538-4357/ace774 . Please cite this publication if you are
+   using this code.
+
+   Code adopted from initial code provided by T Perrott, with additions
+   from A Bera and M Glowacki and based on earlier code by by A Sutinjo
+   and a script by D Scott. See https://github.com/marcinglowacki/SHRINE
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   amsterdm.structure.logger
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   amsterdm.structure.Structure
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   amsterdm.structure._warn_to_logger
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:function:: _warn_to_logger(message, category, filename, lineno, file=None, line=None)
+
+   Helper function to write warnings both by the logger, and to stderr
+
+
+.. py:class:: Structure(data: amsterdm.constants.Array, dms: numpy.ndarray, kc: int | None = None)
+
+   Class to hold the structure data and calculation results
+
+   While the actual calculation can be a straightforward function,
+   additional functionality such as creating diagnostic plots require
+   the intermediate calculated data. These are kept as part of the
+   class, and then plots can be optionally created after the initial
+   calculation.
+
+   If you use this functionality of AmsterDM, please cite Sutinjo et
+   al, 2023, 10.3847/1538-4357/ace774
+
+
+
+   .. py:attribute:: data
+
+
+   .. py:attribute:: dms
+
+
+   .. py:attribute:: kc
+      :value: None
+
+
+
+   .. py:method:: setup()
+
+      Calculation of some initial variables
+
+
+
+   .. py:method:: calc(order: int = 3) -> tuple[astropy.units.Quantity, astropy.units.Quantity, astropy.units.Quantity, astropy.units.Quantity, astropy.units.Quantity]
+
+      Optimize a DM by optimizing structure data; provide an error estimate on DM as well
+
+      :param order: Order of the low-pass filter function
+      :type order: positive integer, default 3
+
+
+
+   .. py:method:: calc_kc(window: int = 5) -> int
+
+      Obtain best estimate for the spectral cutoff parameter k_c
+
+      :param window: window size for the "rolling average"
+
+      :rtype: Best estimate for kc
+
+      :raises A ValueError is raised if no k_c value can be found:
+      :raises Description:
+      :raises -----------:
+      :raises Estimates k_c by finding where the noise flattens, and then:
+      :raises finding the point (index) where the windowed-average of the:
+      :raises signal dips below the noise.:
+      :raises See section 4.3 in Sutinjo et al.:
+
+
+
+   .. py:method:: calc_uncert(noise)
+
+      Determine the uncertainties for the data
+
+      Following eq 20, Sutinjo et al 2023.
+
+
+
+
+   .. py:method:: plot_spectrum(ax: matplotlib.axes.Axes | None = None, grid: bool = True, **kwargs) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+
+      Plot the spectrum of the (bowtie) data
+
+      Plots dct(I) versus k on a log-log plot.
+
+      If `kc` was calculated or given, plot a vertical line at the `kc` value.
+
+
+
+
+   .. py:method:: plot_structure(ax: matplotlib.axes.Axes | None = None, grid: bool = True, **kwargs)
+
+      Plot the structure parameter versus DM
+
+
+
+   .. py:method:: plot_adjusted_structure(ax: matplotlib.axes.Axes | None = None, grid: bool = True, **kwargs)
+
+      Plot the adjusted structure parameter versus DM
+
+
+
+   .. py:method:: plot_uncertainty(ax: matplotlib.axes.Axes | None = None, grid: bool = True, **kwargs)
+
+      Plot the (relative) uncertainties versus DM
+
+
+
+   .. py:method:: plot_detrended_noise(ax: matplotlib.axes.Axes | None = None, **kwargs)
+
+      Plot the detrended noise
+
+
+
+   .. py:method:: plot_relative_detrended_noise(ax: matplotlib.axes.Axes | None = None, **kwargs)
+
+      Plot the relative detrended noise
+
+
+

@@ -570,7 +570,7 @@ Module Contents
    :raises ValueError: If `waterfall` is not two dimensional
 
 
-.. py:function:: bowtie(data: amsterdm.constants.Array, freqs: list | numpy.ndarray | astropy.units.Quantity, tsamp: float | astropy.units.Quantity, dminterval: amsterdm.utils.FInterval | amsterdm.utils.QInterval, reffreq: float | astropy.units.Quantity | None = None, ndm: int = 50, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean') -> numpy.ndarray
+.. py:function:: bowtie(data: amsterdm.constants.Array, freqs: list | numpy.ndarray | astropy.units.Quantity, tsamp: float | astropy.units.Quantity, dminterval: amsterdm.utils.FInterval | amsterdm.utils.QInterval, reffreq: float | astropy.units.Quantity | None = None, ndm: int = 50, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean') -> tuple[numpy.ndarray, numpy.ndarray]
 
    Create the data for a bowtie plot: varying DM versus time/samples
 
@@ -605,8 +605,12 @@ Module Contents
    :param ndm: Number of DM samples along the y-axis
    :type ndm: int, default=50
 
-   :returns: **bowtie data** -- two dimensional array containing the bowtie-plot data
-   :rtype: ndarray
+   :returns:
+
+             - first item: bowtie data
+               two dimensional array containing the bowtie-plot data
+             - second item: dm values matching the y-axis of the bowtie data
+   :rtype: tuple of [np.ndarray, np.ndarray]
 
    :raises ValueError: if the length of `freqs` doesn't match the first axis of `data`.
 

@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Notes on the structure optimization implementation" href="structure.html"><link rel="prev" title="Programmatic use" href="scripts.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Development" href="development.html"><link rel="prev" title="The base modules" href="base.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>The base modules - AmsterDM documentation</title>
+        <title>Notes on the structure optimization implementation - AmsterDM documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=acfd86a5" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
@@ -195,8 +195,8 @@
   <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="gui.html">Graphical User Interface</a></li>
 <li class="toctree-l1"><a class="reference internal" href="scripts.html">Programmatic use</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">The base modules</a></li>
-<li class="toctree-l1"><a class="reference internal" href="structure.html">Notes on the structure optimization implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="base.html">The base modules</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Notes on the structure optimization implementation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="development.html">Development</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="autoapi/index.html">API Reference</a><input aria-label="Toggle navigation of API Reference" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2 has-children"><a class="reference internal" href="autoapi/amsterdm/index.html">amsterdm</a><input aria-label="Toggle navigation of amsterdm" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -245,7 +245,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="_sources/base.md.txt" title="View this page">
+  <a class="muted-link" href="_sources/structure.md.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -263,61 +263,62 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="the-base-modules">
-<h1>The base modules<a class="headerlink" href="#the-base-modules" title="Link to this heading">¶</a></h1>
-<p>The core and burst modules form the basis of the AmsterDM package. The core module contains a set of practical functions to dedisperse data, calculate a dynamic spectrum, a light curve or a bow-tie plot, while the burst module contains a Burst class that provides a more object-oriented interface to the data, packing all necessary details into a single Burst instance.</p>
-<section id="the-core-module">
-<h2>The core module<a class="headerlink" href="#the-core-module" title="Link to this heading">¶</a></h2>
-<p>The core module contains a set of functions that act on data as two- or three-dimensional NumPy arrays representing the actual data. The frequencies and sampling interval are also input, as are the dispersion measure and an optional dedispersion reference frequency. Some functions require a dispersion measure interval, such as those for creating the data for a bow-tie plot or for estimating and fitting signal-to-noise data. Details for each function are in the API documentation.</p>
-<p>The data NumPy array uses (time) samples for the first axis and channel (frequency) for the last axis. For a two-dimensional array, these are the only axes; for a three-dimensional array, the center axis is for the polarization channels. The latter can be of size 1, in which case it is assumed to be Stokes I and is equivalent to a two-dimensional array; size 2, which assumes xx and yy polarization channels; and size 4, which assumes Stokes I, Q, U and V polarization channels. For xx-yy polarization, some functions will correct (dedisperse and bandpass-normalize) the channels individually, then add them together, to produce, for example, a dynamic spectrum or a light curve. For a set of four-Stokes channels, only the first channel is used and Q, U and V are simply ignored.</p>
-<p>The frequency input is a one-dimensional list or array that matches the frequency axis of the input data. The sampling interval is a simple float, while the optional reference frequency is also a float. The dispersion measure is a float, while any interval is a tuple or list of two floats, start and end.</p>
-<p>All values, except for the data array itself, can (and preferably should have) units attached to them. This can be done with <code class="docutils literal notranslate"><span class="pre">astropy.units</span></code>, which is used under the hood. This ensures correct interpretation of input values, so that no mistakes between, e.g., seconds and milliseconds are made. If no units are given, frequencies are assumed to be in megahertz (MHz), sampling time in milliseconds (ms) and dispersion measure in cm^-3 pc. For the latter, a constant exists that is this exact unit, <code class="docutils literal notranslate"><span class="pre">amsterdm.constants.DMUNIT</span></code>.</p>
-</section>
-<section id="the-burst-module">
-<h2>The burst module<a class="headerlink" href="#the-burst-module" title="Link to this heading">¶</a></h2>
-<p>The burst module wraps the above functionality into a <code class="docutils literal notranslate"><span class="pre">Burst</span></code> class that keeps track of the data, frequencies, sampling time and other details. It is usually created from an input data file, either with the <code class="docutils literal notranslate"><span class="pre">Burst.fromfile</span></code> class method or with the basic <code class="docutils literal notranslate"><span class="pre">open()</span></code> function. The header of the file should provide enough input to automatically set the frequencies and sampling time correctly, but sometimes manual adjustment may be needed.</p>
-<p>When using the <code class="docutils literal notranslate"><span class="pre">open()</span></code> function for reading a data file, this can be used as a context manager with the <code class="docutils literal notranslate"><span class="pre">with</span></code> statement, e.g.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;somefile.dat&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">burst</span><span class="p">:</span>
-    <span class="o">...</span>  <span class="c1"># execute code with burst</span>
+          <section id="notes-on-the-structure-optimization-implementation">
+<h1>Notes on the structure optimization implementation<a class="headerlink" href="#notes-on-the-structure-optimization-implementation" title="Link to this heading">¶</a></h1>
+<section id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h2>
+<p>For usage of the structure calculation, the code makes use of a <code class="docutils literal notranslate"><span class="pre">Structure</span></code> class. This allows it to easily store and access intermediate variables, that could then be plotted for verification plots.</p>
+<p>The input data for the <code class="docutils literal notranslate"><span class="pre">Structure</span></code> class requires so-called bowtie data: light curve data at a range of dispersion measures, in the form of a two-dimensional array. Also input are the dispersion measures themselves, a one-dimensional array.</p>
+<p>Sample code would then look as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">burst</span> <span class="o">=</span> <span class="n">Burst</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>  <span class="c1"># or read directly from file with `burst = Burst.fromfile(path)`</span>
+
+<span class="n">tie</span><span class="p">,</span> <span class="n">dms</span> <span class="o">=</span> <span class="n">burst</span><span class="o">.</span><span class="n">bowtie</span><span class="p">(</span><span class="n">dminterval</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">backgroundrange</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">ndm</span><span class="o">=</span><span class="mi">150</span><span class="p">)</span>
+
+<span class="n">struct</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">Structure</span><span class="p">(</span><span class="n">tie</span><span class="p">,</span> <span class="n">dms</span><span class="p">)</span>
+
+<span class="n">optdm</span><span class="p">,</span> <span class="n">lowdm</span><span class="p">,</span> <span class="n">highdm</span><span class="p">,</span> <span class="n">mindm</span><span class="p">,</span> <span class="n">maxdm</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">calc</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>Sample time and frequency information for a <code class="docutils literal notranslate"><span class="pre">Burst</span></code> instance is not set directly with a frequency array, but through specific attributes (corresponding to somewhat standard header keywords). These are</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">tsamp</span></code> for the sample time interval. If no unit is given, milliseconds are assumed.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tstart</span></code> for the starting date-time point of the first sample. If not unit is given, days are assumed.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">fch1</span></code> for the frequency of the first channel. If no unit is given, MHz is assumed.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">foff</span></code> for the offset between individual channels. This can be negative. If no unit is given, MHz is assumed.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">fanchor</span></code> for the anchoring point of the first frequency <code class="docutils literal notranslate"><span class="pre">fch1</span></code>. That is, <code class="docutils literal notranslate"><span class="pre">&quot;mid&quot;</span></code> for the center of the channel, <code class="docutils literal notranslate"><span class="pre">&quot;bottom&quot;</span></code> for the lower-frequency side of the channel (even with a negative <code class="docutils literal notranslate"><span class="pre">foff</span></code>) and <code class="docutils literal notranslate"><span class="pre">&quot;top&quot;</span></code> for the upper-frequency side of the channel.</p></li>
-</ul>
-<p>The above properties can be read and set. The following properties are intended to be read-only:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">times</span></code> is an array of timestamps of the samples, using <code class="docutils literal notranslate"><span class="pre">tsamp</span></code> and <code class="docutils literal notranslate"><span class="pre">tstart</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">reltimes</span></code> is an array of timestamps of the samples, assuming 0 for the first sample, in seconds.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">freqs</span></code> is an array of frequencies matching the channels, using <code class="docutils literal notranslate"><span class="pre">fch1</span></code>, <code class="docutils literal notranslate"><span class="pre">foff</span></code> and <code class="docutils literal notranslate"><span class="pre">fanchor</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">cfreq</span></code> is the central frequency, essentially the midpoint of <code class="docutils literal notranslate"><span class="pre">freqs</span></code>.</p></li>
-</ul>
-<section id="burst-core-and-plotting-methods">
-<h3>Burst core and plotting methods<a class="headerlink" href="#burst-core-and-plotting-methods" title="Link to this heading">¶</a></h3>
-<p>A <code class="docutils literal notranslate"><span class="pre">Burst</span></code> instance has methods that match the core functions, without the need to supply the data, frequencies and sampling interval manually, as this is part of the <code class="docutils literal notranslate"><span class="pre">Burst</span></code> instance.</p>
-<p>Similarly, there are various plotting routines available as methods. These routines don’t directly create the figure; that is, they don’t save a figure to file or open a new window with the plot. Instead, these routines return a tuple of a Matplotlib <code class="docutils literal notranslate"><span class="pre">Figure</span></code> instance and an <code class="docutils literal notranslate"><span class="pre">Axes</span></code> instance. This is often enough in a notebook to immediately plot the figure, but in a script, the figure may still need to be saved manually. For example</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;myburst.dat&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">burst</span><span class="p">:</span>
-    <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">burst</span><span class="o">.</span><span class="n">waterfall</span><span class="p">()</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;myburst.png&quot;</span><span class="p">)</span>
+<p><code class="docutils literal notranslate"><span class="pre">struct.calc()</span></code> will automatically calculate a best estimate for <code class="docutils literal notranslate"><span class="pre">kc</span></code>, the spectral cutoff in the low-pass filter. One could also set a value in the class constructor (keyword argument <code class="docutils literal notranslate"><span class="pre">kc</span></code>) or even as an attribute after instance creation. As long as <code class="docutils literal notranslate"><span class="pre">kc</span></code> is not <code class="docutils literal notranslate"><span class="pre">None</span></code> (or zero), a best estimate will be calculated. The order parameter is an optional argument to <code class="docutils literal notranslate"><span class="pre">struct.calc()</span></code>; its default is 3.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">lowdm</span></code> and <code class="docutils literal notranslate"><span class="pre">highdm</span></code> values contain the errors on <code class="docutils literal notranslate"><span class="pre">optdm</span></code>, while <code class="docutils literal notranslate"><span class="pre">mindm</span></code> and <code class="docutils literal notranslate"><span class="pre">maxdm</span></code> contain the range (so <code class="docutils literal notranslate"><span class="pre">optdm</span></code> + <code class="docutils literal notranslate"><span class="pre">lowdm</span></code> equals <code class="docutils literal notranslate"><span class="pre">mindm</span></code> and <code class="docutils literal notranslate"><span class="pre">optdm</span></code> + <code class="docutils literal notranslate"><span class="pre">highdm</span></code> equals <code class="docutils literal notranslate"><span class="pre">maxdm</span></code>); note that <code class="docutils literal notranslate"><span class="pre">lowdm</span></code>, the lower error, is given as a negative value.</p>
+<p>For plotting, after the calculation, one can do</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">plot_spectrum</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;spectrum.png&quot;</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">plot_structure</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;structure.png&quot;</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">plot_adjusted_structure</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;adjusted_structure.png&quot;</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">plot_uncertainty</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;uncertainty.png&quot;</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">plot_detrended_noise</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;detrended_noise.png&quot;</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">plot_relative_detrended_noise</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;relative_detrended_noise.png&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>would do that.</p>
-<p>The plotting methods also take an optional <code class="docutils literal notranslate"><span class="pre">ax</span></code> keyword argument, that contains a Matplotlib <code class="docutils literal notranslate"><span class="pre">Axes</span></code> instance to draw on. Otherwise, the figure and axes are created on the fly inside the method.</p>
-<p>Existing plotting methods are</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">waterfall</span></code> creates a waterfall plot (dynamic spectrum plot)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">lcplot</span></code> creates a light curve</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">bgplot</span></code> creates a plot with the background summed across the samples, as well as its standard deviation (so background versus frequency)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">bowtieplot</span></code> creates a bow-tie plot</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">s2nplot</span></code> creates a signal-to-noise plot, optionally with a Gaussian fit</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">dmplot</span></code> creates a combination of a waterfall plot, a light curve and a background plot</p></li>
-</ul>
-<p>The various plotting methods also take a set of keyword arguments for tweaking some aspects of the plots themselves, similar to Matplotlib’s functions. Examples are a color-normalization range (<code class="docutils literal notranslate"><span class="pre">vmin</span></code> and <code class="docutils literal notranslate"><span class="pre">vmax</span></code>), logarithmic axes (<code class="docutils literal notranslate"><span class="pre">logscale</span></code>) or x- and y-labels (<code class="docutils literal notranslate"><span class="pre">xlabel</span></code>, <code class="docutils literal notranslate"><span class="pre">ylabel</span></code>). See the <code class="docutils literal notranslate"><span class="pre">examples/plots.py</span></code> example, or the <code class="docutils literal notranslate"><span class="pre">amsterdm.plot</span></code> module for more details.</p>
+<p>For a more complete example, see <code class="docutils literal notranslate"><span class="pre">examples/structure.py</span></code>.</p>
 </section>
+<section id="implementation-notes">
+<h2>Implementation notes<a class="headerlink" href="#implementation-notes" title="Link to this heading">¶</a></h2>
+<p>The code follows the article formulations, as well as the code given at <a class="reference external" href="https://github.com/marcinglowacki/SHRINE">https://github.com/marcinglowacki/SHRINE</a>.</p>
+<p>The section for estimating the range of DM (and the uncertainty) has some differences and unclarity:</p>
+<ul>
+<li><p>when the range is deduced in the original code, the first index <em>after</em> the adjusted structure parameter is <em>above</em> the structure parameter is included (which equates to the lower bound), while the first index <em>after</em> the adjusted structure parameter is <em>below</em> the structure parameter is also included (which equates to the upper bound). The means for the uncertainty indices, the first index is inside the interval, but the last index is just outside the interval. This shifts the interval slightly to the right (higher values). This is all under the assumption that the values are monotonically increasing, which is normally the case.</p>
+<p>In the AmsterDM, both sides are inside the interval. This shrinks the uncertainty interval slightly, but makes it symmetric. The results therefore differ at the upper bound.</p>
+<p>Perhaps more ideally, the interval edges should include half the bin size (DM bin width), or interpolate between the boundary indices inside and outside the interval.</p>
+<p>Both methods warn if there are gaps where the adjusted structure parameter temporarily is below the maximum structure parameter; in both cases, the final outer edges are used for the uncertainty interval. So the gaps are ignored in the end result of the uncertainty calculation.</p>
+</li>
+<li><p>The actual uncertainty calculation is unclear. It redoes some steps as for the structure parameter calculation, but then for the relative noise. There is also a single discrete cosine transform, but no inverse; this means “ortho” is required for the normalization. The use of “ortho” is presumably because the eigenvectors should be normalised.</p>
+<p>There is also a double filter step in the uncertainty calculation: the bandpass filter is applied to data that already has had the lowpass filter applied. It is unclear why this is the case, and where in the article this shows up. Note that the SHRINE code mentions in the doc-string: <code class="docutils literal notranslate"><span class="pre">LPF_data:</span> <span class="pre">The</span> <span class="pre">discrete</span> <span class="pre">cosine</span> <span class="pre">space</span> <span class="pre">smoothed</span> <span class="pre">data.</span></code>, which would mean <code class="docutils literal notranslate"><span class="pre">C^T</span> <span class="pre">i</span></code>, but it actually is the smoothed data filtered by the low-pass filter (which the name <code class="docutils literal notranslate"><span class="pre">LPF_data</span></code> implies); and the calling code does indeed pass low-pass-filtered smoothed data as argument to this function.</p>
+<p>In AmsterDM, this functionality is used as well: low-pass filtered data is passed to the uncertainty calculation, and is there filtered again by the (full) bandpass.</p>
+<p>Probably, low-pass filtering first and then bandpass filtering doesn’t change compared to only bandpass filtering; perhaps the effect on the lower side is stronger with double filtering, but data values in that regime should already be minimal and neglible after the first filter, sp that changes resulting from the second filter stay neglible.</p>
+</li>
+</ul>
 </section>
 </section>
 
@@ -326,23 +327,23 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="structure.html">
+          <a class="next-page" href="development.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Notes on the structure optimization implementation</div>
+                <div class="title">Development</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="scripts.html">
+          <a class="prev-page" href="base.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Programmatic use</div>
+                <div class="title">The base modules</div>
                 
               </div>
             </a>
@@ -376,12 +377,9 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">The base modules</a><ul>
-<li><a class="reference internal" href="#the-core-module">The core module</a></li>
-<li><a class="reference internal" href="#the-burst-module">The burst module</a><ul>
-<li><a class="reference internal" href="#burst-core-and-plotting-methods">Burst core and plotting methods</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#">Notes on the structure optimization implementation</a><ul>
+<li><a class="reference internal" href="#usage">Usage</a></li>
+<li><a class="reference internal" href="#implementation-notes">Implementation notes</a></li>
 </ul>
 </li>
 </ul>

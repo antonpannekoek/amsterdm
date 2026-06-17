@@ -17,6 +17,7 @@ Submodules
    /autoapi/amsterdm/io/index
    /autoapi/amsterdm/plot/index
    /autoapi/amsterdm/sim/index
+   /autoapi/amsterdm/structure/index
    /autoapi/amsterdm/tools/index
    /autoapi/amsterdm/utils/index
 

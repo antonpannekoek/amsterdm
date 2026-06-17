@@ -194,6 +194,7 @@
 <li class="toctree-l1"><a class="reference internal" href="gui.html">Graphical User Interface</a></li>
 <li class="toctree-l1"><a class="reference internal" href="scripts.html">Programmatic use</a></li>
 <li class="toctree-l1"><a class="reference internal" href="base.html">The base modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="structure.html">Notes on the structure optimization implementation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="development.html">Development</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="autoapi/index.html">API Reference</a><input aria-label="Toggle navigation of API Reference" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2 has-children"><a class="reference internal" href="autoapi/amsterdm/index.html">amsterdm</a><input aria-label="Toggle navigation of amsterdm" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -211,6 +212,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="autoapi/amsterdm/plot/index.html">amsterdm.plot</a></li>
 <li class="toctree-l3"><a class="reference internal" href="autoapi/amsterdm/sim/index.html">amsterdm.sim</a></li>
+<li class="toctree-l3"><a class="reference internal" href="autoapi/amsterdm/structure/index.html">amsterdm.structure</a></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="autoapi/amsterdm/tools/index.html">amsterdm.tools</a><input aria-label="Toggle navigation of amsterdm.tools" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/amsterdm/tools/fil2fits/index.html">amsterdm.tools.fil2fits</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/amsterdm/tools/header/index.html">amsterdm.tools.header</a></li>
@@ -256,7 +258,7 @@
           
 <section class="genindex-section">
   <h1 id="index">Index</h1>
-  <div class="genindex-jumpbox"><a href="#_"><strong>_</strong></a> | <a href="#A"><strong>A</strong></a> | <a href="#B"><strong>B</strong></a> | <a href="#C"><strong>C</strong></a> | <a href="#D"><strong>D</strong></a> | <a href="#E"><strong>E</strong></a> | <a href="#F"><strong>F</strong></a> | <a href="#G"><strong>G</strong></a> | <a href="#H"><strong>H</strong></a> | <a href="#I"><strong>I</strong></a> | <a href="#L"><strong>L</strong></a> | <a href="#M"><strong>M</strong></a> | <a href="#N"><strong>N</strong></a> | <a href="#O"><strong>O</strong></a> | <a href="#P"><strong>P</strong></a> | <a href="#Q"><strong>Q</strong></a> | <a href="#R"><strong>R</strong></a> | <a href="#S"><strong>S</strong></a> | <a href="#T"><strong>T</strong></a> | <a href="#U"><strong>U</strong></a> | <a href="#W"><strong>W</strong></a></div>
+  <div class="genindex-jumpbox"><a href="#_"><strong>_</strong></a> | <a href="#A"><strong>A</strong></a> | <a href="#B"><strong>B</strong></a> | <a href="#C"><strong>C</strong></a> | <a href="#D"><strong>D</strong></a> | <a href="#E"><strong>E</strong></a> | <a href="#F"><strong>F</strong></a> | <a href="#G"><strong>G</strong></a> | <a href="#H"><strong>H</strong></a> | <a href="#I"><strong>I</strong></a> | <a href="#K"><strong>K</strong></a> | <a href="#L"><strong>L</strong></a> | <a href="#M"><strong>M</strong></a> | <a href="#N"><strong>N</strong></a> | <a href="#O"><strong>O</strong></a> | <a href="#P"><strong>P</strong></a> | <a href="#Q"><strong>Q</strong></a> | <a href="#R"><strong>R</strong></a> | <a href="#S"><strong>S</strong></a> | <a href="#T"><strong>T</strong></a> | <a href="#U"><strong>U</strong></a> | <a href="#W"><strong>W</strong></a></div>
 </section>
 <section id="_" class="genindex-section">
   <h2>_</h2>
@@ -293,6 +295,8 @@
         <li><a href="autoapi/amsterdm/gui/index.html#amsterdm.gui.BurstPlot._update_data">_update_data() (amsterdm.gui.BurstPlot method)</a>
 </li>
         <li><a href="autoapi/amsterdm/gui/index.html#amsterdm.gui.BurstPlot._update_dm_slider">_update_dm_slider() (amsterdm.gui.BurstPlot method)</a>
+</li>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure._warn_to_logger">_warn_to_logger() (in module amsterdm.structure)</a>
 </li>
         <li><a href="autoapi/amsterdm/gui/index.html#amsterdm.gui.BurstPlot._x_viewrange">_x_viewrange (amsterdm.gui.BurstPlot attribute)</a>
 </li>
@@ -400,6 +404,13 @@
 </li>
         </ul></li>
         <li>
+    amsterdm.structure
+
+        <ul>
+          <li><a href="autoapi/amsterdm/structure/index.html#module-amsterdm.structure">module</a>
+</li>
+        </ul></li>
+        <li>
     amsterdm.tools
 
         <ul>
@@ -479,6 +490,8 @@
   <h2>C</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.calc">calc() (amsterdm.structure.Structure method)</a>
+</li>
         <li><a href="autoapi/amsterdm/burst/index.html#amsterdm.burst.Burst.calc_background">calc_background() (amsterdm.burst.Burst method)</a>
 
         <ul>
@@ -491,14 +504,18 @@
           <li><a href="autoapi/amsterdm/core/index.html#amsterdm.core.calc_intensity">(in module amsterdm.core)</a>
 </li>
         </ul></li>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.calc_kc">calc_kc() (amsterdm.structure.Structure method)</a>
+</li>
         <li><a href="autoapi/amsterdm/core/index.html#amsterdm.core.calc_lightcurve">calc_lightcurve() (in module amsterdm.core)</a>
 </li>
         <li><a href="autoapi/amsterdm/core/index.html#amsterdm.core.calc_lightcurve_from_waterfall">calc_lightcurve_from_waterfall() (in module amsterdm.core)</a>
 </li>
-        <li><a href="autoapi/amsterdm/burst/index.html#amsterdm.burst.Burst.cfreq">cfreq (amsterdm.burst.Burst property)</a>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.calc_uncert">calc_uncert() (amsterdm.structure.Structure method)</a>
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="autoapi/amsterdm/burst/index.html#amsterdm.burst.Burst.cfreq">cfreq (amsterdm.burst.Burst property)</a>
+</li>
         <li><a href="autoapi/amsterdm/burst/index.html#amsterdm.burst.Burst.channel2freq">channel2freq() (amsterdm.burst.Burst method)</a>
 </li>
         <li><a href="autoapi/amsterdm/burst/index.html#amsterdm.burst.Burst.close">close() (amsterdm.burst.Burst method)</a>
@@ -524,7 +541,11 @@
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="autoapi/amsterdm/burst/index.html#amsterdm.burst.Burst.data">data (amsterdm.burst.Burst attribute)</a>
+
+        <ul>
+          <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.data">(amsterdm.structure.Structure attribute)</a>
 </li>
+        </ul></li>
         <li><a href="autoapi/amsterdm/burst/index.html#amsterdm.burst.Burst.dedisperse">dedisperse() (amsterdm.burst.Burst method)</a>
 
         <ul>
@@ -552,6 +573,8 @@
         <li><a href="autoapi/amsterdm/constants/index.html#amsterdm.constants.DMCONST">DMCONST (in module amsterdm.constants)</a>
 </li>
         <li><a href="autoapi/amsterdm/burst/index.html#amsterdm.burst.Burst.dmplot">dmplot() (amsterdm.burst.Burst method)</a>
+</li>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.dms">dms (amsterdm.structure.Structure attribute)</a>
 </li>
         <li><a href="autoapi/amsterdm/constants/index.html#amsterdm.constants.DMUNIT">DMUNIT (in module amsterdm.constants)</a>
 </li>
@@ -667,6 +690,16 @@
   </tr></table>
 </section>
 
+<section id="K" class="genindex-section">
+  <h2>K</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.kc">kc (amsterdm.structure.Structure attribute)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
 <section id="L" class="genindex-section">
   <h2>L</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
@@ -687,6 +720,8 @@
           <li><a href="autoapi/amsterdm/io/psrfits/index.html#amsterdm.io.psrfits.logger">(in module amsterdm.io.psrfits)</a>
 </li>
           <li><a href="autoapi/amsterdm/plot/index.html#amsterdm.plot.logger">(in module amsterdm.plot)</a>
+</li>
+          <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.logger">(in module amsterdm.structure)</a>
 </li>
         </ul></li>
     </ul></td>
@@ -742,6 +777,8 @@
           <li><a href="autoapi/amsterdm/plot/index.html#module-amsterdm.plot">amsterdm.plot</a>
 </li>
           <li><a href="autoapi/amsterdm/sim/index.html#module-amsterdm.sim">amsterdm.sim</a>
+</li>
+          <li><a href="autoapi/amsterdm/structure/index.html#module-amsterdm.structure">amsterdm.structure</a>
 </li>
           <li><a href="autoapi/amsterdm/tools/index.html#module-amsterdm.tools">amsterdm.tools</a>
 </li>
@@ -804,11 +841,23 @@
           <li><a href="autoapi/amsterdm/tools/header/index.html#amsterdm.tools.header.parse_args">(in module amsterdm.tools.header)</a>
 </li>
         </ul></li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.plot_adjusted_structure">plot_adjusted_structure() (amsterdm.structure.Structure method)</a>
+</li>
         <li><a href="autoapi/amsterdm/gui/index.html#amsterdm.gui.BurstPlot.plot_bkg">plot_bkg() (amsterdm.gui.BurstPlot method)</a>
 </li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.plot_detrended_noise">plot_detrended_noise() (amsterdm.structure.Structure method)</a>
+</li>
         <li><a href="autoapi/amsterdm/gui/index.html#amsterdm.gui.BurstPlot.plot_lc">plot_lc() (amsterdm.gui.BurstPlot method)</a>
+</li>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.plot_relative_detrended_noise">plot_relative_detrended_noise() (amsterdm.structure.Structure method)</a>
+</li>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.plot_spectrum">plot_spectrum() (amsterdm.structure.Structure method)</a>
+</li>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.plot_structure">plot_structure() (amsterdm.structure.Structure method)</a>
+</li>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.plot_uncertainty">plot_uncertainty() (amsterdm.structure.Structure method)</a>
 </li>
         <li><a href="autoapi/amsterdm/gui/index.html#amsterdm.gui.BurstPlot.plot_waterfall">plot_waterfall() (amsterdm.gui.BurstPlot method)</a>
 </li>
@@ -898,6 +947,10 @@
 </li>
         <li><a href="autoapi/amsterdm/gui/index.html#amsterdm.gui.BurstPlot.sample_reset">sample_reset (amsterdm.gui.BurstPlot attribute)</a>
 </li>
+        <li><a href="autoapi/amsterdm/plot/index.html#amsterdm.plot.set_title_labels">set_title_labels() (in module amsterdm.plot)</a>
+</li>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure.setup">setup() (amsterdm.structure.Structure method)</a>
+</li>
         <li><a href="autoapi/amsterdm/burst/index.html#amsterdm.burst.Burst.signal2noise">signal2noise() (amsterdm.burst.Burst method)</a>
 
         <ul>
@@ -922,6 +975,8 @@
           <li><a href="autoapi/amsterdm/utils/index.html#amsterdm.utils.QInterval.start">(amsterdm.utils.QInterval attribute)</a>
 </li>
         </ul></li>
+        <li><a href="autoapi/amsterdm/structure/index.html#amsterdm.structure.Structure">Structure (class in amsterdm.structure)</a>
+</li>
         <li><a href="autoapi/amsterdm/utils/index.html#amsterdm.utils.symlog">symlog() (in module amsterdm.utils)</a>
 </li>
         <li><a href="autoapi/amsterdm/utils/index.html#amsterdm.utils.symlog10">symlog10() (in module amsterdm.utils)</a>
