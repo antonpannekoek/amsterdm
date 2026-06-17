@@ -8,6 +8,7 @@
 gui
 scripts
 base
+structure
 development
 autoapi/index
 ```

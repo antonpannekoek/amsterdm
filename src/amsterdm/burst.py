@@ -679,7 +679,7 @@ class Burst:
         bkg_method: str = "mean",
         ndm: int = 50,
         reffreq: float | None = None,
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, np.ndarray]:
         data = core.flag(self.data, badchannels)
 
         return core.bowtie(

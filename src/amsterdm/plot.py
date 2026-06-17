@@ -24,6 +24,7 @@ from __future__ import annotations  # for Burst type
 
 import logging
 from types import EllipsisType
+import warnings
 
 from astropy.time import Time
 from astropy.units import Quantity
@@ -43,7 +44,7 @@ logger = logging.getLogger(__package__)
 
 
 def ensure_figure(
-    ax: Axes, figsize: tuple[float, float] = (12, 8)
+    ax: Axes | None, figsize: tuple[float, float] = (12, 8)
 ) -> tuple[Figure, Axes]:
     if not ax:
         # Create a new figure
@@ -54,6 +55,19 @@ def ensure_figure(
     else:
         figure = ax.figure
     return figure, ax
+
+
+def set_title_labels(kwargs, defaults, ax):
+
+    title = kwargs.get("title", defaults.get("title", ""))
+    if title:
+        ax.set_title(title)
+    xlabel = kwargs.get("xlabel", defaults.get("xlabel", ""))
+    if xlabel:
+        ax.set_xlabel(xlabel)
+    ylabel = kwargs.get("ylabel", defaults.get("ylabel", ""))
+    if ylabel:
+        ax.set_ylabel(ylabel)
 
 
 def waterfall(
@@ -134,17 +148,20 @@ def waterfall(
     if badchannels is None:
         badchannels = []
 
-    vmin = options.get("vmin", 0.1)
-    vmax = options.get("vmax", 0.9)
-    cmap = options.get("cmap", "viridis")
-    cbar = options.get("cbar", True)
-    fillmask = options.get("fillmask", "nan")
-    xlabel = options.get("xlabel", "samples")
-    x2label = options.get("xlabel", "time (milliseconds)")
-    ylabel = options.get("ylabel", "channels")
-    y2label = options.get("ylabel", "frequency (MHz)")
-    origin = options.get("origin", "upper")
-    logscale = options.get("logscale", False)
+    opts = options.copy()
+    vmin = opts.pop("vmin", 0.1)
+    vmax = opts.pop("vmax", 0.9)
+    cmap = opts.pop("cmap", "viridis")
+    cbar = opts.pop("cbar", True)
+    fillmask = opts.pop("fillmask", "nan")
+    xlabel = opts.pop("xlabel", "samples")
+    x2label = opts.pop("xlabel", "time (milliseconds)")
+    ylabel = opts.pop("ylabel", "channels")
+    y2label = opts.pop("ylabel", "frequency (MHz)")
+    origin = opts.pop("origin", "upper")
+    logscale = opts.pop("logscale", False)
+    if opts:
+        warnings.warn(f"unknown option(s): {opts}")
 
     fig, ax = ensure_figure(ax)
 
@@ -176,7 +193,7 @@ def waterfall(
         stokesI = symlog(stokesI)
 
     vmin, vmax = np.nanpercentile(stokesI, (vmin * 100, vmax * 100))
-
+    origin = "lower"
     image = ax.imshow(
         stokesI.T, aspect="auto", origin=origin, cmap=cmap, vmin=vmin, vmax=vmax
     )
@@ -378,7 +395,7 @@ def bowtie(
 
     if badchannels is not None:
         data = core.flag(data, badchannels)
-    data = core.bowtie(
+    data, _ = core.bowtie(
         data,
         freqs,
         tsamp,
@@ -431,13 +448,21 @@ def bowtie(
         vmax=vmax,
     )
 
-    divider = make_axes_locatable(ax)
-    if cbar is True or cbar.lower() == "right":
+    # Create extra space for the colorbar,
+    # so it doesn't run into the right-margin tick labels
+    cbar = "" if cbar is False else ("right" if cbar is True else cbar)
+    if cbar.lower() == "right":
+        divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
-    elif cbar.lower() == "left":
-        cax = divider.append_axes("left", size="5%", pad=0.15)
-    if cbar:
         ax.figure.colorbar(image, cax=cax, orientation="vertical")
+    elif cbar.lower() == "left":
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("left", size="5%", pad=0.15)
+        ax.figure.colorbar(image, cax=cax, orientation="vertical")
+    elif not cbar:
+        pass
+    else:
+        warnings.warn(f"unknown `cbar` value {cbar}")
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)

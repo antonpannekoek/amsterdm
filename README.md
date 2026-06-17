@@ -2,6 +2,7 @@
 
 AmsterDM is a Python package that provides functionality to retrieve the best estimates for the dispersion measure (DM) of fast radio bursts (FRBs), in particularly in cases where the DM may vary across the light curve. This estimation can be done interactively through a gui, with various diagnostic plots that can be updated on the fly.
 
+
 # Dependencies
 
 AmsterDM depends on a set of Python packages: NumPy, AstroPy, Xarray and the Holoviews ecosystem. It is likely that precompiled binary versions of these packages exist for your platform and Python version, and you use a simple `pip install` to have the packages installed.
@@ -9,6 +10,7 @@ AmsterDM depends on a set of Python packages: NumPy, AstroPy, Xarray and the Hol
 The required minimum Python version is 3.11.
 
 The software has been tested on an M4 Macbook Pro, with Firefox 146 or Safari 26 for the gui.
+
 
 # Installation
 
@@ -19,6 +21,7 @@ pip install git+https://github.com/antonpannekoek/amsterdm.git
 ```
 
 This will install the dependencies for you as well.
+
 
 ## Virtual environment
 
@@ -31,6 +34,7 @@ source amsterdm/bin/activate
 
 A [`uv`](https://docs.astral.sh/uv/pip/environments/), [`Mamba`](https://mamba.readthedocs.io/en/latest/user_guide/mamba.html) or [`Conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) virtual environment can also work. The latter tools can also install a specific Python version for you.
 
+
 ## Development installation
 
 If you want to do development on the package, it is best to fork the package on GitHub, then clone your local fork to your work machine, and install from the clone. After setting up and activating a virtual environment, install an editable version of the package directly from your local repository, with some extra packages as well:
@@ -40,6 +44,7 @@ pip install -e '.[dev,extra]'
 ```
 
 The `dev` dependencies include [`ruff`](https://docs.astral.sh/ruff/), which is used for formatting and linting of the code, [`pytest`](https://docs.pytest.org/en/stable/) for running unit tests, and [MyST](https://myst-parser.readthedocs.io/en/latest/intro.html) for documentation. The `extra` package contains the [Jupyter](https://jupyter.org/) suite of tools (the terminal, notebook and lab interfaces).
+
 
 # Running
 
@@ -51,6 +56,7 @@ python -m amsterdm.gui <filterbank-file>
 This will open the gui in a new tab in your default browser, with the filterbank file opened and plotted in the diagnostic plots.
 
 Some more details are in the `docs/gui.md` file.
+
 
 ## Examples
 
@@ -77,6 +83,14 @@ python -m amsterdm.tools.fil2fits <filterbank-file> [FITS-file]
 
 The FITS file is optional; if not given, the output file name is the same as the input Filterbank file, with the extension changed from `.fil` to `.fits`
 
-# License
+
+# Copyright & license
 
 This software is copyright 2026, University of Amsterdam, and is distributed under the GPL-3.0 license. See the LICENSE file for the full text.
+
+
+# Acknowledgments
+
+This software has made use of the `your` package (https://github.com/thepetabyteproject/your ) for the implementation of its PSR FITS reading capabilities. `your` is distributed under the GNU GENERAL PUBLIC LICENSE, version 3. While this is a re-implementation of the code for PSR FITS reading, you may want to cite Aggarwal et al. 2020, 10.21105/joss.02750; even if you're not directly using the `your` package.
+
+This software implements the algorithm for optimizing the dispersion measure using the structure parameter as described in Sutinjo et al. 2023, 10.3847/1538-4357/ace774, and made use of the code in [SHRINE](https://github.com/marcinglowacki/SHRINE) for its own implementation. If you use this algorithm, please cite Sutinjo et al.
