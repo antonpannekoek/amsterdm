@@ -87,6 +87,18 @@ class Structure:
 
         self.setup()
 
+    def __str__(self):
+        string = f"Structure for data shaped {self.data.shape}, "
+        string += f"with DM interval from {self.dms[0]} to {self.dms[-1]}"
+        if self.kc is not None:
+            string += f" and k_c = {self.kc}"
+        return string
+
+    def _repr_pretty_(self, printer, cycle):
+        """IPython integration; just returns the `str` form"""
+
+        printer.text(str(self))
+
     def setup(self):
         """Calculation of some initial variables"""
 
