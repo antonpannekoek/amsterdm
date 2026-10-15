@@ -188,7 +188,7 @@ class Structure:
             )
         if indices[-1] == len(self.dms) - 1:
             warnings.warn(
-                "minimum dm estimate is at the lower edge of the input dm range"
+                "maximum dm estimate is at the upper edge of the input dm range"
             )
 
         self.mindm = self.dms[indices[0]]
