@@ -44,7 +44,7 @@ fig, ax = struct.plot_relative_detrended_noise()
 fig.savefig("relative_detrended_noise.png")
 ```
 
-For a more complete example, see `examples/structure.py`.
+For a more complete example, see `examples/structure.py` or the `examples/basicdemo.ipynb` notebook.
 
 ## Implementation notes
 
