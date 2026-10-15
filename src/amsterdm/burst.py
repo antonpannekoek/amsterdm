@@ -88,6 +88,10 @@ class Burst:
 
     def _fix_missing(self):
         """Try and fix any missing keywords"""
+        if "nsamples" not in self.header:
+            # nsamples is not expected to be in any (FITS) header, so we just add it
+            self.header["nsamples"] = self.data.shape[0]
+
         if "nchans" not in self.header:
             warnings.warn("'nchans' not found in header; determining from the data")
             self.header["nchans"] = self.data.shape[-1]
@@ -410,14 +414,33 @@ class Burst:
         if self._file and hasattr(self._file, "close"):
             self._file.close()
 
-    def trim(
+    def trim(self, samples: tuple[int, int]):
+        """Trim the burst section to the given `samples` range
+
+        Data is modified in-place. The data in the input file, if any
+        is not touched.
+
+        The relevant header keyword 'nsamples' is adjusted as
+        well. (naxis is not touched, as this refers to the data on
+        disk and is only relevant for the FITS file.)
+
+        This action is non-reversible, except by recreating the Burst
+        instance from the original data file.
+
+        """
+
+        section = slice(*samples)
+        self.data = self.data[section, ...]
+        self.header["nsamples"] = self.data.shape[0]
+
+    def trim_times_freqs(
         self,
         times: tuple[float, float] | None = None,
         freqs: tuple[float, float] | None = None,
     ):
         """Trim the burst section to `times` and `freqs`
 
-        Data is modified in-place. The data in the file, if it exists,
+        Data is modified in-place. The data in the input file, if any,
         is not touched.
 
         This action is non-reversible, except by recreating the Burst
@@ -444,6 +467,7 @@ class Burst:
             self.data = self.data[section, ...]
             if "reltimes" in self.header:
                 self.header["reltimes"] = self.header["reltimes"][section]
+            self.header["nsamples"] = self.data.shape[0]
 
         if freqs:
             section = (
@@ -457,6 +481,7 @@ class Burst:
             self.data = self.data[..., section]
             if "freqs" in self.header:
                 self.header["freqs"] = self.header["freqs"][section]
+            self.header["nchans"] = self.data.shape[-1]
 
     def downsample(
         self, factor: int = 1, remainder: str = "droptail", method: str = "mean"

@@ -18,3 +18,6 @@ SOD = 60 * 60 * 24 * units.second
 
 # Type alias
 type Array = np.ndarray | np.ma.MaskedArray
+
+
+HEADER_POLKEYS = ["polchan"]
