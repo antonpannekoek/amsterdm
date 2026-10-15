@@ -319,6 +319,18 @@ class Structure:
 
         return (fig, ax)
 
+    def plot_rel_uncertainty(self, ax: Axes | None = None, grid: bool = True, **kwargs):
+        """Plot the relative uncertainties versus DM"""
+
+        fig, ax = ensure_figure(ax)
+        ax.plot(self.dms, self.rel_uncertainty)
+        defaults = {"title": "relative uncertainty", "xlabel": r"DM"}
+        set_title_labels(kwargs, defaults, ax)
+        if grid:
+            ax.grid(color="k", linestyle="--", linewidth=0.5)
+
+        return (fig, ax)
+
     def plot_detrended_noise(self, ax: Axes | None = None, **kwargs):
         """Plot the detrended noise"""
 
