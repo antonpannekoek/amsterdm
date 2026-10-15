@@ -33,6 +33,20 @@ class QInterval(NamedTuple):
     end: Quantity
 
 
+def ensure_interval_list(data):
+    """Ensures `data` is a list of intervals, even if `data` is a single interval"""
+
+    if isinstance(data, (FInterval, QInterval)):
+        return [data]
+    if isinstance(data, (tuple, list)) and not isinstance(
+        data[0], (FInterval, QInterval, tuple, list)
+    ):
+        return [data]
+    # Try to convert to list
+    # tuples, sets, iterators and lists of intervals will all be lists
+    return list(data)
+
+
 def mask2d(data, rowids):
     """Mask rows in a two-dimensional array"""
 

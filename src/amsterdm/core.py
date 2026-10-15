@@ -62,7 +62,7 @@ from astropy.units import Quantity
 import numpy as np
 
 from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST, DMUNIT, Array
-from .utils import FInterval, QInterval
+from .utils import FInterval, QInterval, ensure_interval_list
 
 
 __all__ = [
@@ -1651,7 +1651,7 @@ def signal2noise(
     # Calculate the background of the light curve
     # using the `backgroundrange`
     if backgroundrange:
-        for bkgrange in backgroundrange:
+        for bkgrange in ensure_interval_list(backgroundrange):
             low = int(nsamp * bkgrange[0] + 0.5)
             high = int(nsamp * bkgrange[1] + 0.5)
             idx_bkg.append(np.arange(low, high))
