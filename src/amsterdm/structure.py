@@ -1,4 +1,5 @@
-"""Module to compute a best estimate for the dispersion measure, including an error estimate.
+"""Module to compute a best estimate for the dispersion measure,
+including an error estimate.
 
 Following the publication of Sutinjo et al, 2023,
 10.3847/1538-4357/ace774 . Please cite this publication if you are
@@ -47,9 +48,6 @@ class Structure:
     class, and then plots can be optionally created after the initial
     calculation.
 
-    If you use this functionality of AmsterDM, please cite Sutinjo et
-    al, 2023, 10.3847/1538-4357/ace774
-
     """
 
     def __init__(self, data: Array, dms: np.ndarray, kc: int | None = None):
@@ -61,7 +59,7 @@ class Structure:
 
                 This should be "bowtie" data: a two-dimensional array of
                 dispersion measures along the y-axis versus stacked time
-                samples (i.e., light curves) along the y-axis.
+                samples (i.e., light curves) along the x-axis.
 
             dms: one-dimensional array
 
@@ -146,11 +144,11 @@ class Structure:
         self.bandpass = np.diag(bandpass)
         bpdata = self.bandpass @ self.dctdata.T
 
-        # Calculate the normed data
+        # Calculate the normalized data
         # This is equivalent to the structure parameter
         self.structure = np.linalg.norm(bpdata, axis=0)
 
-        # Maximum of the structure parameter is our best estimate for DM
+        # The maximum of the structure parameter is our best estimate for DM
         argmax = np.argmax(self.structure)
         self.maxstructure = self.structure[argmax]
 
@@ -160,10 +158,17 @@ class Structure:
 
         # detrended noise = noisy data - smoothed data
         self.noise = self.data - self.smoothdata
+        self.uncertainty = self.calc_uncert(self.noise)
+
+        # Noise difference w.r.t. to the noise at the best-estimate DM
         self.deltanoise = self.noise - self.noise[argmax]
 
-        self.relerror = self.calc_uncert(self.deltanoise)
-        self.adjusted_structure = self.structure + (self.structure * self.relerror)
+        self.rel_uncertainty = self.calc_uncert(self.deltanoise)
+
+        self.adjusted_structure = self.structure + (
+            self.structure * self.rel_uncertainty
+        )
+
         # Find the first and last index to be at or above maxstructure
         indices = np.where(self.adjusted_structure >= self.maxstructure)[0]
         if len(indices) < 2:
@@ -249,16 +254,18 @@ class Structure:
     def calc_uncert(self, noise):
         """Determine the uncertainties for the data
 
-        Following eq 20, Sutinjo et al 2023.
+        Following eq 19, Sutinjo et al 2023.
+
+        The input noise is the noise difference w.r.t. to the noise at the best-estimate DM
 
         """
-
-        doublefiltered = self.bandpass @ self.dctdata_lp
-        normdoublefiltered = np.linalg.norm(doublefiltered, axis=0)
 
         dctnoise = dct(noise, norm="ortho")
         dctnoisefiltered = self.bandpass @ dctnoise.T
         normeddctnoise = np.linalg.norm(dctnoisefiltered, axis=0)
+
+        doublefiltered = self.bandpass @ self.dctdata_lp
+        normdoublefiltered = np.linalg.norm(doublefiltered, axis=0)
 
         self.error = normeddctnoise / normdoublefiltered
 
@@ -284,7 +291,13 @@ class Structure:
         defaults = {"title": "spectrum", "xlabel": r"$k$", "ylabel": r"$ C^T \cdot i$"}
         set_title_labels(kwargs, defaults, ax)
         if self.kc:
-            ax.axvline(x=self.kc)
+            ax.axvline(x=self.kc, color="blue", linestyle="--")
+            ax.text(
+                x=self.kc + 1,
+                y=np.min(np.abs(self.dctdata)) * 2,
+                s=r"$k_c$",
+                color="blue",
+            )
         if grid:
             ax.grid(color="k", linestyle="--", linewidth=0.5)
 
@@ -306,7 +319,13 @@ class Structure:
     def plot_adjusted_structure(
         self, ax: Axes | None = None, grid: bool = True, **kwargs
     ):
-        """Plot the adjusted structure parameter versus DM"""
+        """Plot the adjusted structure parameter versus DM
+
+        The adjusted structure is the structure parameter plus the
+        calculated (difference) noise, i.e., the noise w.r.t. to the
+        noise at the best-estimate structure parameter.
+
+        """
 
         fig, ax = ensure_figure(ax)
 
@@ -319,11 +338,10 @@ class Structure:
         return (fig, ax)
 
     def plot_uncertainty(self, ax: Axes | None = None, grid: bool = True, **kwargs):
-        """Plot the (relative) uncertainties versus DM"""
+        """Plot the uncertainties versus DM"""
 
         fig, ax = ensure_figure(ax)
-
-        ax.plot(self.dms, self.relerror)
+        ax.plot(self.dms, self.uncertainty)
         defaults = {"title": "uncertainty", "xlabel": r"DM"}
         set_title_labels(kwargs, defaults, ax)
         if grid:
