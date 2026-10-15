@@ -14,7 +14,7 @@ from matplotlib.axes import Axes
 
 from . import core
 from . import plot
-from .constants import DEFAULT_BACKGROUND_RANGE, DMUNIT, Array
+from .constants import DEFAULT_BACKGROUND_RANGE, DMUNIT, Array, HEADER_POLKEYS
 from .io import read_fileformat, read_filterbank, read_fits, read_psrfits, read_hdf5
 from .utils import FInterval
 
@@ -26,7 +26,7 @@ class Burst:
     """An FRB object"""
 
     @classmethod
-    def fromfile(cls, fobj: BufferedIOBase):
+    def fromfile(cls, fobj: BufferedIOBase, poltype=None, convert=True):
         if isinstance(fobj, (str, PurePath)):
             path = Path(fobj)
             if not path.exists():
@@ -49,9 +49,11 @@ class Burst:
             header, data = read_hdf5(fobj)
         header["format"] = fileformat
 
-        return cls(header, data, file=fobj)
+        return cls(header, data, file=fobj, poltype=poltype, convert=convert)
 
-    def __init__(self, header, data, dm=0, file=None, copy=False):
+    def __init__(
+        self, header, data, dm=0, file=None, copy=False, poltype=None, convert=True
+    ):
         self.header = header.copy()
         self.data = data.copy() if copy else data
         self.dm = dm
@@ -68,6 +70,10 @@ class Burst:
         else:
             self.path = self.filename = None
         self.badchannels = []
+
+        self._get_poltype(poltype)
+        if convert:
+            self._convert_poldata()
 
         self._fix_missing()
         self._set_attrs()
@@ -152,6 +158,110 @@ class Burst:
             for i in range(self.data.shape[-1]):
                 if self.data[..., i].mask.all():
                     self.badchannels.append(i)
+
+    def _get_poltype(self, poltype=None):
+        """Verify or determine the polarization type from the data and header"""
+
+        _poltype = None
+        if poltype is not None:
+            # User-supplied polarization type; verify
+            _poltype = poltype.lower()
+            if _poltype == "i" and self.data.ndim == 3:
+                if self.data.shape[1] != 1:
+                    raise ValueError(
+                        "second data dimension does not match the polarization type"
+                    )
+            if _poltype != "i" and self.data.ndim == 2:
+                raise ValueError(
+                    "second data dimension does not match the polarization type"
+                )
+        else:
+            # Determine the polarization from the header and data
+            if self.data.ndim == 2:
+                _poltype = "i"
+            elif self.data.ndim == 3:
+                if self.data.shape[1] == 1:
+                    _poltype = "i"
+                elif self.data.shape[1] == 4:
+                    # Use header to determine the polarization
+                    _poltype = None
+                    for key in HEADER_POLKEYS:
+                        _poltype = self.header.get(key)
+                        if _poltype:
+                            break
+                    else:
+                        raise ValueError(
+                            "polarization type can't be determined; please specify using the 'poltype' keyword"
+                        )
+            else:
+                raise ValueError(f"invalid data dimensions: {self.data.shape}")
+
+        # Transform to AmsterDM usage
+        if _poltype:
+            _poltype = _poltype.lower()
+        if _poltype == "xx-yy":
+            _poltype = "xy"
+        if _poltype == "aa-bb":
+            _poltype = "ab"
+        if _poltype == "rr-ll":
+            _poltype = "rl"
+
+        if _poltype not in ["xy", "ab", "rl", "i", "iquv"]:
+            raise ValueError(f"unknown polarization type {poltype}")
+
+        self.poltype = _poltype
+
+    def _convert_poldata(self):
+        """Convert data to Stokes I(QUV), given the polarisation type
+
+        This conversion happens in-place; the old data is destroyed
+        and replaced by the IQUV data.
+
+        """
+
+        self.orig_poltype = self.poltype
+        if self.data.ndim == 2:
+            return
+        if self.data.ndim == 3 and self.data.shape[1] == 1:
+            self.data = np.squeeze(self.data)
+            return
+        if self.poltype == "iquv":
+            return
+        # Convert to Stokes IQUV
+        if self.poltype == "xy":
+            logger.info("Converting XX-YY data to IQUV")
+            data = np.ma.array(
+                [
+                    self.data[:, 0, :] + self.data[:, 1, :],
+                    self.data[:, 0, :] - self.data[:, 1, :],
+                    self.data[:, 2, :] + self.data[:, 3, :],
+                    self.data[:, 2, :] - self.data[:, 3, :],
+                ]
+            )
+            self.data = np.moveaxis(data, 0, 1)
+        if self.poltype == "rl":
+            logger.info("Converting RR-LL data to IQUV")
+            data = np.ma.array(
+                [
+                    self.data[:, 0, :] + self.data[:, 1, :],
+                    self.data[:, 2, :] + self.data[:, 3, :],
+                    self.data[:, 2, :] - self.data[:, 3, :],
+                    self.data[:, 0, :] - self.data[:, 1, :],
+                ]
+            )
+            self.data = np.moveaxis(data, 0, 1)
+            logger.info("Converting AA-BB data to IQUV")
+        if self.poltype == "ab":
+            data = np.ma.array(
+                [
+                    self.data[:, 0, :] + self.data[:, 1, :],
+                    self.data[:, 0, :] + self.data[:, 1, :],
+                    2 * self.data[:, 2, :],
+                    2 * self.data[:, 3, :],
+                ]
+            )
+            self.data = np.moveaxis(data, 0, 1)
+        self.poltype = "iquv"
 
     # The following are properties, so that changing them will also change the
     # `times`, `reltimes`, `freqs`, `freq_offset` and `cfreq` (cached) properties

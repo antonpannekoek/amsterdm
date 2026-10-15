@@ -1493,11 +1493,6 @@ def bowtie(
             "`freqs` length does not match the last axis of the data array"
         )
 
-    data, poltype = _format_data(data)
-    data = np.squeeze(data)
-    if data.ndim != 2:
-        raise ValueError("data contains multiple polarization channels")
-
     (tsamp, freqs, reffreq, _, dminterval) = ensure_quantities(
         tsamp, freqs, reffreq, None, dminterval
     )
