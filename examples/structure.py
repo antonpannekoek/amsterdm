@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from amsterdm.burst import Burst
-from amsterdm import structure
+from amsterdm.structure import Structure
 
 
 logger = logging.getLogger("amsterdm")
@@ -88,6 +88,7 @@ def bandpass(x):
 
 
 def run():
+    # Create a test structure with 1024 samples and 64 channels
     data, ideal, noise = create_test_structure(
         1024,
         64,
@@ -99,35 +100,67 @@ def run():
         ys=[12, 12],
         ampl=[2, 1.5],
     )
+    assert data.shape == (1024, 64)
 
     header = {
         "fch1": 1.1e3,
         "foff": 2,
         "tsamp": 2e-5,
     }
+    # This will issue a user warning, that 'nchans' is not found in the header
+    # (since the provided header is very minimal)
+    # and 'chans' is automatically determined from the data
     burst = Burst(header, data)
 
     tie, dms = burst.bowtie(dminterval=[-1, 1], backgroundrange=[0.5, 1], ndm=150)
-    # Writing to file; these can be used as input for the SHRINE implementation
-    # E.g., `python maximise_structure.py -l test -t 20 -d 0  -s`
-    dt = int(header["tsamp"] * 1e6)
-    np.save("test_DMs.npy", dms.value)
-    np.save(f"test_I_{dt}us.npy", tie)
+    assert tie.shape == (150, 1024)  # first axis DMs, second axis samples
+    assert len(dms) == 150
 
-    struct = structure.Structure(tie, dms)
+    if False:
+        # Optional write to file; these can be used as input for the SHRINE implementation
+        # E.g., `python maximise_structure.py -l test -t 20 -d 0  -s`
+        # sampling time in microseconds
+        dt = int(header["tsamp"] * 1e6)
+        np.save("test_DMs.npy", dms.value)
+        np.save(f"test_I_{dt}us.npy", tie)
+
+    struct = Structure(tie, dms)
+    print(struct)
+
     # We can calculate a best kc value first, but don't have to;
     # `struct.calc()` does it if `kc` is `None`, which is the default.
     kc = struct.calc_kc()
+    # There is random noise, but `kc` will likely around 310
     print(f"Best {kc = }")
+    # Note: `kc` is also available via `struct.kc`
 
-    # struct.calc() will now simply use the previous calculated `kc`.
+    # struct.calc() will now use the previous calculated `kc`.
     optdm, lowdm, highdm, mindm, maxdm = struct.calc()
+    # lowdm and highdm are the errors on optdm,
+    # while mindm and maxdm are the corresponding boundary values
+    # I.e., mindm = optdm + lowdm and maxdm = optdm + highdm
+    # Note that lowdm is negative!
+
+    # All values are AstroPy variables, hence we require `.value` to extract the floating point value
+    # The reason for this is that AstroPy will preserve the units, but printing out the values
+    # will show the units for each value individually, instead of only once at the end as done below
     print(
         f"Found a structured optimized DM of {optdm.value:.5f} {lowdm.value:+.5f}/{highdm.value:+.5f}  pc / cm3"
     )
     print(f"DM range = {mindm.value} – {maxdm.value}  pc / cm3")
 
-    filename = "structure.png"
+    # Create a combined plot of
+    # - the dynamic spectrum
+    # - bowtie plot
+    # - spectrum plot with k_c overplotted
+    # - structure parameter vs DM plot
+    # - adjusted structure parameter vs DM plot
+    # - DM uncertainty plot
+    # - detrended noise plot
+    # - relative detrended noise plot
+    # - the structure value versus the DM
+    # -
+    filename = "structure.pdf"
     logger.info("Creating plots; writing to %s", filename)
 
     fig, ax = plt.subplot_mosaic(
@@ -136,7 +169,7 @@ def run():
             ["waterfall", "bowtie"],
             ["spectrum", "structure"],
             ["adj_structure", "uncertainty"],
-            ["detr_noise", "reldetr_noise"],
+            ["rel_uncertainty", "detr_noise"],
         ],
         height_ratios=[1, 3, 3, 3, 3],
         figsize=(12, 16),
@@ -168,13 +201,15 @@ def run():
 
     struct.plot_structure(ax=ax["structure"])
 
+    # The adjusted structure is the structure plus the
+    # error (calculated as the relative error multiplied by the structure)
     struct.plot_adjusted_structure(ax=ax["adj_structure"])
 
     struct.plot_uncertainty(ax=ax["uncertainty"])
 
-    struct.plot_detrended_noise(ax=ax["detr_noise"])
+    struct.plot_rel_uncertainty(ax=ax["rel_uncertainty"])
 
-    struct.plot_relative_detrended_noise(ax=ax["reldetr_noise"])
+    struct.plot_detrended_noise(ax=ax["detr_noise"])
 
     fig.suptitle("Structure diagnostic plots", y=0.92, fontsize=22)
 
