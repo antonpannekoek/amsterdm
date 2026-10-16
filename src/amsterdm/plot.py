@@ -491,6 +491,7 @@ def signal2noise(
 
     if badchannels is not None:
         data = core.flag(data, badchannels)
+
     dms, ratios = core.signal2noise(
         data,
         freqs,
