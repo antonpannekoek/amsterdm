@@ -265,7 +265,8 @@
         <article role="main" id="furo-main-content">
           <section id="module-amsterdm.structure">
 <span id="amsterdm-structure"></span><h1>amsterdm.structure<a class="headerlink" href="#module-amsterdm.structure" title="Link to this heading">¶</a></h1>
-<p>Module to compute a best estimate for the dispersion measure, including an error estimate.</p>
+<p>Module to compute a best estimate for the dispersion measure,
+including an error estimate.</p>
 <p>Following the publication of Sutinjo et al, 2023,
 10.3847/1538-4357/ace774 . Please cite this publication if you are
 using this code.</p>
@@ -330,8 +331,6 @@ additional functionality such as creating diagnostic plots require
 the intermediate calculated data. These are kept as part of the
 class, and then plots can be optionally created after the initial
 calculation.</p>
-<p>If you use this functionality of AmsterDM, please cite Sutinjo et
-al, 2023, 10.3847/1538-4357/ace774</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="amsterdm.structure.Structure.data">
 <span class="sig-name descname"><span class="pre">data</span></span><a class="headerlink" href="#amsterdm.structure.Structure.data" title="Link to this definition">¶</a></dt>
@@ -346,6 +345,17 @@ al, 2023, 10.3847/1538-4357/ace774</p>
 <dt class="sig sig-object py" id="amsterdm.structure.Structure.kc">
 <span class="sig-name descname"><span class="pre">kc</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#amsterdm.structure.Structure.kc" title="Link to this definition">¶</a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="amsterdm.structure.Structure.__str__">
+<span class="sig-name descname"><span class="pre">__str__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.structure.Structure.__str__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="amsterdm.structure.Structure._repr_pretty_">
+<span class="sig-name descname"><span class="pre">_repr_pretty_</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">printer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cycle</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.structure.Structure._repr_pretty_" title="Link to this definition">¶</a></dt>
+<dd><p>IPython integration; just returns the <cite>str</cite> form</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="amsterdm.structure.Structure.setup">
@@ -393,7 +403,8 @@ al, 2023, 10.3847/1538-4357/ace774</p>
 <dt class="sig sig-object py" id="amsterdm.structure.Structure.calc_uncert">
 <span class="sig-name descname"><span class="pre">calc_uncert</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">noise</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.structure.Structure.calc_uncert" title="Link to this definition">¶</a></dt>
 <dd><p>Determine the uncertainties for the data</p>
-<p>Following eq 20, Sutinjo et al 2023.</p>
+<p>Following eq 19, Sutinjo et al 2023.</p>
+<p>The input noise is the noise difference w.r.t. to the noise at the best-estimate DM</p>
 </dd></dl>
 
 <dl class="py method">
@@ -414,12 +425,21 @@ al, 2023, 10.3847/1538-4357/ace774</p>
 <dt class="sig sig-object py" id="amsterdm.structure.Structure.plot_adjusted_structure">
 <span class="sig-name descname"><span class="pre">plot_adjusted_structure</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">matplotlib.axes.Axes</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.structure.Structure.plot_adjusted_structure" title="Link to this definition">¶</a></dt>
 <dd><p>Plot the adjusted structure parameter versus DM</p>
+<p>The adjusted structure is the structure parameter plus the
+calculated (difference) noise, i.e., the noise w.r.t. to the
+noise at the best-estimate structure parameter.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="amsterdm.structure.Structure.plot_uncertainty">
 <span class="sig-name descname"><span class="pre">plot_uncertainty</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">matplotlib.axes.Axes</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.structure.Structure.plot_uncertainty" title="Link to this definition">¶</a></dt>
-<dd><p>Plot the (relative) uncertainties versus DM</p>
+<dd><p>Plot the uncertainties versus DM</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="amsterdm.structure.Structure.plot_rel_uncertainty">
+<span class="sig-name descname"><span class="pre">plot_rel_uncertainty</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">matplotlib.axes.Axes</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.structure.Structure.plot_rel_uncertainty" title="Link to this definition">¶</a></dt>
+<dd><p>Plot the relative uncertainties versus DM</p>
 </dd></dl>
 
 <dl class="py method">
@@ -505,6 +525,8 @@ al, 2023, 10.3847/1538-4357/ace774</p>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.data"><code class="docutils literal notranslate"><span class="pre">Structure.data</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.dms"><code class="docutils literal notranslate"><span class="pre">Structure.dms</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.kc"><code class="docutils literal notranslate"><span class="pre">Structure.kc</span></code></a></li>
+<li><a class="reference internal" href="#amsterdm.structure.Structure.__str__"><code class="docutils literal notranslate"><span class="pre">Structure.__str__()</span></code></a></li>
+<li><a class="reference internal" href="#amsterdm.structure.Structure._repr_pretty_"><code class="docutils literal notranslate"><span class="pre">Structure._repr_pretty_()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.setup"><code class="docutils literal notranslate"><span class="pre">Structure.setup()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.calc"><code class="docutils literal notranslate"><span class="pre">Structure.calc()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.calc_kc"><code class="docutils literal notranslate"><span class="pre">Structure.calc_kc()</span></code></a></li>
@@ -513,6 +535,7 @@ al, 2023, 10.3847/1538-4357/ace774</p>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.plot_structure"><code class="docutils literal notranslate"><span class="pre">Structure.plot_structure()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.plot_adjusted_structure"><code class="docutils literal notranslate"><span class="pre">Structure.plot_adjusted_structure()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.plot_uncertainty"><code class="docutils literal notranslate"><span class="pre">Structure.plot_uncertainty()</span></code></a></li>
+<li><a class="reference internal" href="#amsterdm.structure.Structure.plot_rel_uncertainty"><code class="docutils literal notranslate"><span class="pre">Structure.plot_rel_uncertainty()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.plot_detrended_noise"><code class="docutils literal notranslate"><span class="pre">Structure.plot_detrended_noise()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.structure.Structure.plot_relative_detrended_noise"><code class="docutils literal notranslate"><span class="pre">Structure.plot_relative_detrended_noise()</span></code></a></li>
 </ul>

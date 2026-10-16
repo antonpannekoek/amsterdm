@@ -5,7 +5,8 @@ amsterdm.structure
 
 .. autoapi-nested-parse::
 
-   Module to compute a best estimate for the dispersion measure, including an error estimate.
+   Module to compute a best estimate for the dispersion measure,
+   including an error estimate.
 
    Following the publication of Sutinjo et al, 2023,
    10.3847/1538-4357/ace774 . Please cite this publication if you are
@@ -61,9 +62,6 @@ Module Contents
    class, and then plots can be optionally created after the initial
    calculation.
 
-   If you use this functionality of AmsterDM, please cite Sutinjo et
-   al, 2023, 10.3847/1538-4357/ace774
-
 
 
    .. py:attribute:: data
@@ -74,6 +72,15 @@ Module Contents
 
    .. py:attribute:: kc
       :value: None
+
+
+
+   .. py:method:: __str__()
+
+
+   .. py:method:: _repr_pretty_(printer, cycle)
+
+      IPython integration; just returns the `str` form
 
 
 
@@ -114,7 +121,9 @@ Module Contents
 
       Determine the uncertainties for the data
 
-      Following eq 20, Sutinjo et al 2023.
+      Following eq 19, Sutinjo et al 2023.
+
+      The input noise is the noise difference w.r.t. to the noise at the best-estimate DM
 
 
 
@@ -140,11 +149,22 @@ Module Contents
 
       Plot the adjusted structure parameter versus DM
 
+      The adjusted structure is the structure parameter plus the
+      calculated (difference) noise, i.e., the noise w.r.t. to the
+      noise at the best-estimate structure parameter.
+
+
 
 
    .. py:method:: plot_uncertainty(ax: matplotlib.axes.Axes | None = None, grid: bool = True, **kwargs)
 
-      Plot the (relative) uncertainties versus DM
+      Plot the uncertainties versus DM
+
+
+
+   .. py:method:: plot_rel_uncertainty(ax: matplotlib.axes.Axes | None = None, grid: bool = True, **kwargs)
+
+      Plot the relative uncertainties versus DM
 
 
 

@@ -33,12 +33,12 @@ Module Contents
 
 .. py:data:: logger
 
-.. py:class:: Burst(header, data, dm=0, file=None, copy=False)
+.. py:class:: Burst(header, data, dm=0, file=None, copy=False, poltype=None, convert=True)
 
    An FRB object
 
 
-   .. py:method:: fromfile(fobj: io.BufferedIOBase)
+   .. py:method:: fromfile(fobj: io.BufferedIOBase, poltype=None, convert=True)
       :classmethod:
 
 
@@ -96,6 +96,22 @@ Module Contents
 
       Mask any invalid data, and set `self.badchannels`
       if a complete channel is masked
+
+
+
+   .. py:method:: _get_poltype(poltype=None)
+
+      Verify or determine the polarization type from the data and header
+
+
+
+   .. py:method:: _convert_poldata()
+
+      Convert data to Stokes I(QUV), given the polarisation type
+
+      This conversion happens in-place; the old data is destroyed
+      and replaced by the IQUV data.
+
 
 
 
@@ -157,11 +173,28 @@ Module Contents
 
 
 
-   .. py:method:: trim(times: tuple[float, float] | None = None, freqs: tuple[float, float] | None = None)
+   .. py:method:: trim(samples: tuple[int, int])
+
+      Trim the burst section to the given `samples` range
+
+      Data is modified in-place. The data in the input file, if any
+      is not touched.
+
+      The relevant header keyword 'nsamples' is adjusted as
+      well. (naxis is not touched, as this refers to the data on
+      disk and is only relevant for the FITS file.)
+
+      This action is non-reversible, except by recreating the Burst
+      instance from the original data file.
+
+
+
+
+   .. py:method:: trim_times_freqs(times: tuple[float, float] | None = None, freqs: tuple[float, float] | None = None)
 
       Trim the burst section to `times` and `freqs`
 
-      Data is modified in-place. The data in the file, if it exists,
+      Data is modified in-place. The data in the input file, if any,
       is not touched.
 
       This action is non-reversible, except by recreating the Burst

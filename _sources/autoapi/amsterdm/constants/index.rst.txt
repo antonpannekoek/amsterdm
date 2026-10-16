@@ -14,6 +14,7 @@ Attributes
    amsterdm.constants.DMCONST
    amsterdm.constants.SOD
    amsterdm.constants.Array
+   amsterdm.constants.HEADER_POLKEYS
 
 
 Module Contents
@@ -31,5 +32,9 @@ Module Contents
 
 .. py:type:: Array
    :canonical: np.ndarray | np.ma.MaskedArray
+
+
+.. py:data:: HEADER_POLKEYS
+   :value: ['polchan']
 
 

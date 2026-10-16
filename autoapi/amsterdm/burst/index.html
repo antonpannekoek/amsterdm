@@ -310,11 +310,11 @@
 
 <dl class="py class">
 <dt class="sig sig-object py" id="amsterdm.burst.Burst">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">amsterdm.burst.</span></span><span class="sig-name descname"><span class="pre">Burst</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">header</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.burst.Burst" title="Link to this definition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">amsterdm.burst.</span></span><span class="sig-name descname"><span class="pre">Burst</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">header</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">poltype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.burst.Burst" title="Link to this definition">¶</a></dt>
 <dd><p>An FRB object</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="amsterdm.burst.Burst.fromfile">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">fromfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fobj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">io.BufferedIOBase</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.burst.Burst.fromfile" title="Link to this definition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">fromfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fobj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">io.BufferedIOBase</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">poltype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.burst.Burst.fromfile" title="Link to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -379,6 +379,20 @@
 <span class="sig-name descname"><span class="pre">_flag_channels</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.burst.Burst._flag_channels" title="Link to this definition">¶</a></dt>
 <dd><p>Mask any invalid data, and set <cite>self.badchannels</cite>
 if a complete channel is masked</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="amsterdm.burst.Burst._get_poltype">
+<span class="sig-name descname"><span class="pre">_get_poltype</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">poltype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.burst.Burst._get_poltype" title="Link to this definition">¶</a></dt>
+<dd><p>Verify or determine the polarization type from the data and header</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="amsterdm.burst.Burst._convert_poldata">
+<span class="sig-name descname"><span class="pre">_convert_poldata</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.burst.Burst._convert_poldata" title="Link to this definition">¶</a></dt>
+<dd><p>Convert data to Stokes I(QUV), given the polarisation type</p>
+<p>This conversion happens in-place; the old data is destroyed
+and replaced by the IQUV data.</p>
 </dd></dl>
 
 <dl class="py property">
@@ -464,9 +478,22 @@ if a complete channel is masked</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="amsterdm.burst.Burst.trim">
-<span class="sig-name descname"><span class="pre">trim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">times</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freqs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.burst.Burst.trim" title="Link to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">trim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.burst.Burst.trim" title="Link to this definition">¶</a></dt>
+<dd><p>Trim the burst section to the given <cite>samples</cite> range</p>
+<p>Data is modified in-place. The data in the input file, if any
+is not touched.</p>
+<p>The relevant header keyword ‘nsamples’ is adjusted as
+well. (naxis is not touched, as this refers to the data on
+disk and is only relevant for the FITS file.)</p>
+<p>This action is non-reversible, except by recreating the Burst
+instance from the original data file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="amsterdm.burst.Burst.trim_times_freqs">
+<span class="sig-name descname"><span class="pre">trim_times_freqs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">times</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freqs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amsterdm.burst.Burst.trim_times_freqs" title="Link to this definition">¶</a></dt>
 <dd><p>Trim the burst section to <cite>times</cite> and <cite>freqs</cite></p>
-<p>Data is modified in-place. The data in the file, if it exists,
+<p>Data is modified in-place. The data in the input file, if any,
 is not touched.</p>
 <p>This action is non-reversible, except by recreating the Burst
 instance from the original data file.</p>
@@ -884,6 +911,8 @@ warning is issued and no dedispersion is applied.</p>
 <li><a class="reference internal" href="#amsterdm.burst.Burst._fix_missing"><code class="docutils literal notranslate"><span class="pre">Burst._fix_missing()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.burst.Burst._set_attrs"><code class="docutils literal notranslate"><span class="pre">Burst._set_attrs()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.burst.Burst._flag_channels"><code class="docutils literal notranslate"><span class="pre">Burst._flag_channels()</span></code></a></li>
+<li><a class="reference internal" href="#amsterdm.burst.Burst._get_poltype"><code class="docutils literal notranslate"><span class="pre">Burst._get_poltype()</span></code></a></li>
+<li><a class="reference internal" href="#amsterdm.burst.Burst._convert_poldata"><code class="docutils literal notranslate"><span class="pre">Burst._convert_poldata()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.burst.Burst.tsamp"><code class="docutils literal notranslate"><span class="pre">Burst.tsamp</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.burst.Burst.tstart"><code class="docutils literal notranslate"><span class="pre">Burst.tstart</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.burst.Burst.fch1"><code class="docutils literal notranslate"><span class="pre">Burst.fch1</span></code></a></li>
@@ -900,6 +929,7 @@ warning is issued and no dedispersion is applied.</p>
 <li><a class="reference internal" href="#amsterdm.burst.Burst.time2sample"><code class="docutils literal notranslate"><span class="pre">Burst.time2sample()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.burst.Burst.close"><code class="docutils literal notranslate"><span class="pre">Burst.close()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.burst.Burst.trim"><code class="docutils literal notranslate"><span class="pre">Burst.trim()</span></code></a></li>
+<li><a class="reference internal" href="#amsterdm.burst.Burst.trim_times_freqs"><code class="docutils literal notranslate"><span class="pre">Burst.trim_times_freqs()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.burst.Burst.downsample"><code class="docutils literal notranslate"><span class="pre">Burst.downsample()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.burst.Burst.upsample"><code class="docutils literal notranslate"><span class="pre">Burst.upsample()</span></code></a></li>
 <li><a class="reference internal" href="#amsterdm.burst.Burst.flag"><code class="docutils literal notranslate"><span class="pre">Burst.flag()</span></code></a></li>
