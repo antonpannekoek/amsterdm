@@ -534,7 +534,7 @@ def test_calc_lightcurve():
     assert_allclose(result, expected)
 
 
-def test_calc_lightcurve_from_waterfall():
+def test_calc_lightcurve_from_dynspectrum():
     # Dedispersed and bandpass corrected data; see test_create_dynspectrum
     # above.
     data = np.array(
@@ -545,16 +545,16 @@ def test_calc_lightcurve_from_waterfall():
             [-1.3416407864998738, -1.3416407864998738, 1.3416407864998738],
         ]
     )
-    result = core.calc_lightcurve_from_waterfall(data)
+    result = core.calc_lightcurve_from_dynspectrum(data)
     expected = np.array([-2.23606798, 0.4472136, 3.13049517, -1.34164079])
     assert_allclose(result, expected)
 
 
-def test_bowtie():
+def test_dmtime():
     data = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]])
     freqs = np.array([1.0, 1.1, 1.2])
     dminterval = [9, 11]
-    result, dms = core.bowtie(data, freqs, tsamp=0.1, dminterval=dminterval, ndm=5)
+    result, dms = core.dmtime(data, freqs, tsamp=0.1, dminterval=dminterval, ndm=5)
     expected = np.array(
         [
             [-1.0, -4.33333333, 0.33333333, 5.0],
@@ -569,7 +569,7 @@ def test_bowtie():
     assert_allclose(dms, np.linspace(9, 11, 5) * units.pc / units.cm**3)
 
     freqs *= units.MHz
-    result, _ = core.bowtie(
+    result, _ = core.dmtime(
         data, freqs, tsamp=0.1 * units.ms, dminterval=dminterval * DMUNIT, ndm=5
     )
     assert_allclose(result, expected)

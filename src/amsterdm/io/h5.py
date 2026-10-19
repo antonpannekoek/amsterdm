@@ -1,6 +1,6 @@
 """Module to read a HDF 5 file with FRB data
 
-Implemented for CHIME waterfall data files
+Implemented for CHIME dynamical spectrum data files
 
 """
 

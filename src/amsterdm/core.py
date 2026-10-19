@@ -66,13 +66,13 @@ from .utils import FInterval, QInterval, ensure_interval_list
 
 
 __all__ = [
-    "bowtie",
     "calc_background",
     "calc_intensity",
     "calc_lightcurve",
-    "calc_lightcurve_from_waterfall",
+    "calc_lightcurve_from_dynspectrum",
     "create_dynspectrum",
     "dedisperse",
+    "dmtime",
     "downsample",
     "findpeaklc",
     "findrangelc",
@@ -1392,14 +1392,14 @@ def calc_lightcurve(
     return lightcurve, (bkg_mean, bkg_std)
 
 
-def calc_lightcurve_from_waterfall(waterfall: Array) -> Array:
-    """Calculate the light curve from waterfall data
+def calc_lightcurve_from_dynspectrum(dynspectrum: Array) -> Array:
+    """Calculate the light curve from dynamical spectrum data
 
     This is done by simply summing over the second (frequency) axis
 
     Parameters
     ----------
-    waterfall : ndarray
+    dynspectrum : ndarray
         the dynamical spectrum
 
     Returns
@@ -1410,19 +1410,19 @@ def calc_lightcurve_from_waterfall(waterfall: Array) -> Array:
     Raises
     ------
     ValueError
-        If `waterfall` is not two dimensional
+        If `dynspectrum` is not two dimensional
 
     """
 
-    if waterfall.ndim != 2:
+    if dynspectrum.ndim != 2:
         raise ValueError("argument is not two-dimensional")
 
-    lightcurve = waterfall.sum(axis=1)
+    lightcurve = dynspectrum.sum(axis=1)
 
     return lightcurve
 
 
-def bowtie(
+def dmtime(
     data: Array,
     freqs: list | np.ndarray | Quantity,
     tsamp: float | Quantity,
@@ -1432,7 +1432,7 @@ def bowtie(
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "mean",
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Create the data for a bowtie plot: varying DM versus time/samples
+    """Returns the data for a DM-time plot: varying DM versus time/samples
 
     Parameters
     ----------
@@ -1474,12 +1474,17 @@ def bowtie(
     ndm : int, default=50
         Number of DM samples along the y-axis
 
+    bkg_method: str, optional
+        What method to use for the background calculation. One of
+        "mean", "median" or "mode". See :func:`~core.calc_background`
+        for details.
+
     Returns
     -------
     tuple of [np.ndarray, np.ndarray]
-        - first item: bowtie data
-          two dimensional array containing the bowtie-plot data
-        - second item: dm values matching the y-axis of the bowtie data
+        - first item: DM-time data
+          two dimensional array containing the DM-time plot data
+        - second item: dm values matching the y-axis of the DM-time data
 
     Raises
     ------
@@ -1639,8 +1644,8 @@ def signal2noise(
     spectra = _create_dynspectra(
         data, freqs, tsamp, dmcenter, reffreq, backgroundrange, bkg_method
     )
-    waterfall = spectra["xx"][0]
-    lightcurve = np.ma.filled(waterfall, 0).sum(axis=1)
+    dynspectrum = spectra["xx"][0]
+    lightcurve = np.ma.filled(dynspectrum, 0).sum(axis=1)
     idx_bkg = []
     nsamp = len(lightcurve)
     # Calculate the background of the light curve
@@ -1662,9 +1667,9 @@ def signal2noise(
     ratios = []
     for i, dm in enumerate(dms):
         logger.debug("dm = %.4f", dm.value)
-        relwaterfall = dedisperse(waterfall, freqs, tsamp, dm, reffreq=reffreq)
+        reldynspectrum = dedisperse(dynspectrum, freqs, tsamp, dm, reffreq=reffreq)
         # Sum across frequencies to obtain the light curve
-        lightcurve = np.ma.filled(relwaterfall, 0).sum(axis=1)
+        lightcurve = np.ma.filled(reldynspectrum, 0).sum(axis=1)
         value = lightcurve.max() if peak else lightcurve.sum()
         ratio = value / lcstd
         ratios.append(ratio)

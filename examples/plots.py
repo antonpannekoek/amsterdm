@@ -4,7 +4,7 @@
 
 Usage example:
 
-    python examples/plots.py examples/amsterdm-sim.fits --plots s2n waterfall lc --back 0 0.3333 --back 0.666 1 --dm 123.45
+    python examples/plots.py examples/amsterdm-sim.fits --plots s2n dynspectrum lc --back 0 0.3333 --back 0.666 1 --dm 123.45
 
 
 Run examples/simulate.py to create an input file for this example:
@@ -88,27 +88,27 @@ def main(
             sections, _ = core.findrangelc(lc, kappa=10)
 
         if "all" in plots or "waterfall" in plots or "dynspec" in plots:
-            logger.info("Creating waterfall plot")
-            fig, ax = burst.waterfall(
+            logger.info("Creating dynamic spectrum plot")
+            fig, ax = burst.dynspectrumplot(
                 dm,
                 badchannels=badchannels,
                 backgroundrange=background,
                 fillmask=np.ma.median,
             )
-            ax.set_title(f"Waterfall plot of {path.stem}")
-            outfile = pngfile.with_stem(path.stem + "-waterfall")
+            ax.set_title(f"Dynamic spectrum plot of {path.stem}")
+            outfile = pngfile.with_stem(path.stem + "-dynspectrum")
             fig.savefig(outfile)
 
-        if "all" in plots or "bowtie" in plots:
-            logger.info("Creating bowtie plot")
-            fig, ax = burst.bowtieplot(
+        if "all" in plots or "dmtime" in plots:
+            logger.info("Creating DM-time plot")
+            fig, ax = burst.dmtimeplot(
                 (dm - 50 * DMUNIT, dm + 50 * DMUNIT),
                 badchannels=badchannels,
                 backgroundrange=background,
                 ndm=50,
             )
-            ax.set_title(f"Bowtie plot of {path.stem}")
-            outfile = pngfile.with_stem(path.stem + "-bowtie")
+            ax.set_title(f"DM-time plot of {path.stem}")
+            outfile = pngfile.with_stem(path.stem + "-dmtime")
             fig.savefig(outfile)
 
         if "all" in plots or "lightcurve" in plots or "lc" in plots:
@@ -213,7 +213,7 @@ def parse_args():
         choices=(
             "waterfall",
             "dynspec",
-            "bowtie",
+            "dmtime",
             "lightcurve",
             "lc",
             "background",
