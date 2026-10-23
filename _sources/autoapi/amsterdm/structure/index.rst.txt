@@ -130,7 +130,7 @@ Module Contents
 
    .. py:method:: plot_spectrum(ax: matplotlib.axes.Axes | None = None, grid: bool = True, **kwargs) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
 
-      Plot the spectrum of the (bowtie) data
+      Plot the spectrum of the (DM-time) data
 
       Plots dct(I) versus k on a log-log plot.
 

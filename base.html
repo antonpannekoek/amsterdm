@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Notes on the structure optimization implementation" href="structure.html"><link rel="prev" title="Programmatic use" href="scripts.html">
 
-    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
         <title>The base modules - AmsterDM documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=acfd86a5" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
@@ -265,10 +265,10 @@
         <article role="main" id="furo-main-content">
           <section id="the-base-modules">
 <h1>The base modules<a class="headerlink" href="#the-base-modules" title="Link to this heading">¶</a></h1>
-<p>The core and burst modules form the basis of the AmsterDM package. The core module contains a set of practical functions to dedisperse data, calculate a dynamic spectrum, a light curve or a bow-tie plot, while the burst module contains a Burst class that provides a more object-oriented interface to the data, packing all necessary details into a single Burst instance.</p>
+<p>The core and burst modules form the basis of the AmsterDM package. The core module contains a set of practical functions to dedisperse data, calculate a dynamic spectrum, a light curve or a DM-time plot, while the burst module contains a Burst class that provides a more object-oriented interface to the data, packing all necessary details into a single Burst instance.</p>
 <section id="the-core-module">
 <h2>The core module<a class="headerlink" href="#the-core-module" title="Link to this heading">¶</a></h2>
-<p>The core module contains a set of functions that act on data as two- or three-dimensional NumPy arrays representing the actual data. The frequencies and sampling interval are also input, as are the dispersion measure and an optional dedispersion reference frequency. Some functions require a dispersion measure interval, such as those for creating the data for a bow-tie plot or for estimating and fitting signal-to-noise data. Details for each function are in the API documentation.</p>
+<p>The core module contains a set of functions that act on data as two- or three-dimensional NumPy arrays representing the actual data. The frequencies and sampling interval are also input, as are the dispersion measure and an optional dedispersion reference frequency. Some functions require a dispersion measure interval, such as those for creating the data for a DM-time plot or for estimating and fitting signal-to-noise data. Details for each function are in the API documentation.</p>
 <p>The data NumPy array uses (time) samples for the first axis and channel (frequency) for the last axis. For a two-dimensional array, these are the only axes; for a three-dimensional array, the center axis is for the polarization channels. The latter can be of size 1, in which case it is assumed to be Stokes I and is equivalent to a two-dimensional array; size 2, which assumes xx and yy polarization channels; and size 4, which assumes Stokes I, Q, U and V polarization channels. For xx-yy polarization, some functions will correct (dedisperse and bandpass-normalize) the channels individually, then add them together, to produce, for example, a dynamic spectrum or a light curve. For a set of four-Stokes channels, only the first channel is used and Q, U and V are simply ignored.</p>
 <p>The frequency input is a one-dimensional list or array that matches the frequency axis of the input data. The sampling interval is a simple float, while the optional reference frequency is also a float. The dispersion measure is a float, while any interval is a tuple or list of two floats, start and end.</p>
 <p>All values, except for the data array itself, can (and preferably should have) units attached to them. This can be done with <code class="docutils literal notranslate"><span class="pre">astropy.units</span></code>, which is used under the hood. This ensures correct interpretation of input values, so that no mistakes between, e.g., seconds and milliseconds are made. If no units are given, frequencies are assumed to be in megahertz (MHz), sampling time in milliseconds (ms) and dispersion measure in cm^-3 pc. For the latter, a constant exists that is this exact unit, <code class="docutils literal notranslate"><span class="pre">amsterdm.constants.DMUNIT</span></code>.</p>
@@ -301,7 +301,7 @@
 <p>A <code class="docutils literal notranslate"><span class="pre">Burst</span></code> instance has methods that match the core functions, without the need to supply the data, frequencies and sampling interval manually, as this is part of the <code class="docutils literal notranslate"><span class="pre">Burst</span></code> instance.</p>
 <p>Similarly, there are various plotting routines available as methods. These routines don’t directly create the figure; that is, they don’t save a figure to file or open a new window with the plot. Instead, these routines return a tuple of a Matplotlib <code class="docutils literal notranslate"><span class="pre">Figure</span></code> instance and an <code class="docutils literal notranslate"><span class="pre">Axes</span></code> instance. This is often enough in a notebook to immediately plot the figure, but in a script, the figure may still need to be saved manually. For example</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;myburst.dat&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">burst</span><span class="p">:</span>
-    <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">burst</span><span class="o">.</span><span class="n">waterfall</span><span class="p">()</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">burst</span><span class="o">.</span><span class="n">dynspectrum</span><span class="p">()</span>
     <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;myburst.png&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -309,12 +309,12 @@
 <p>The plotting methods also take an optional <code class="docutils literal notranslate"><span class="pre">ax</span></code> keyword argument, that contains a Matplotlib <code class="docutils literal notranslate"><span class="pre">Axes</span></code> instance to draw on. Otherwise, the figure and axes are created on the fly inside the method.</p>
 <p>Existing plotting methods are</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">waterfall</span></code> creates a waterfall plot (dynamic spectrum plot)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dynspectrum</span></code> creates a dynamic spectrum plot</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">lcplot</span></code> creates a light curve</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">bgplot</span></code> creates a plot with the background summed across the samples, as well as its standard deviation (so background versus frequency)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">bowtieplot</span></code> creates a bow-tie plot</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dmtimeplot</span></code> creates a DM-time plot</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">s2nplot</span></code> creates a signal-to-noise plot, optionally with a Gaussian fit</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">dmplot</span></code> creates a combination of a waterfall plot, a light curve and a background plot</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dmplot</span></code> creates a combination of a dynamic spectrum plot, a light curve and a background plot</p></li>
 </ul>
 <p>The various plotting methods also take a set of keyword arguments for tweaking some aspects of the plots themselves, similar to Matplotlib’s functions. Examples are a color-normalization range (<code class="docutils literal notranslate"><span class="pre">vmin</span></code> and <code class="docutils literal notranslate"><span class="pre">vmax</span></code>), logarithmic axes (<code class="docutils literal notranslate"><span class="pre">logscale</span></code>) or x- and y-labels (<code class="docutils literal notranslate"><span class="pre">xlabel</span></code>, <code class="docutils literal notranslate"><span class="pre">ylabel</span></code>). See the <code class="docutils literal notranslate"><span class="pre">examples/plots.py</span></code> example, or the <code class="docutils literal notranslate"><span class="pre">amsterdm.plot</span></code> module for more details.</p>
 </section>
@@ -350,7 +350,7 @@
         <div class="bottom-of-page">
           <div class="left-details">
             <div class="copyright">
-                Copyright &#169; 2026, Amsterdam FRB group
+                Copyright &#169; 2026, Amsterdam FRB group - University of Amsterdam
             </div>
             Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
             

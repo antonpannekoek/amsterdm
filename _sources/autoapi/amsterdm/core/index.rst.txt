@@ -75,8 +75,8 @@ Functions
    amsterdm.core.calc_intensity
    amsterdm.core.create_dynspectrum
    amsterdm.core.calc_lightcurve
-   amsterdm.core.calc_lightcurve_from_waterfall
-   amsterdm.core.bowtie
+   amsterdm.core.calc_lightcurve_from_dynspectrum
+   amsterdm.core.dmtime
    amsterdm.core.signal2noise
    amsterdm.core.fit_ratios
 
@@ -555,24 +555,24 @@ Module Contents
    :rtype: A 2-tuple of (ndarray, (float, float))
 
 
-.. py:function:: calc_lightcurve_from_waterfall(waterfall: amsterdm.constants.Array) -> amsterdm.constants.Array
+.. py:function:: calc_lightcurve_from_dynspectrum(dynspectrum: amsterdm.constants.Array) -> amsterdm.constants.Array
 
-   Calculate the light curve from waterfall data
+   Calculate the light curve from dynamical spectrum data
 
    This is done by simply summing over the second (frequency) axis
 
-   :param waterfall: the dynamical spectrum
-   :type waterfall: ndarray
+   :param dynspectrum: the dynamical spectrum
+   :type dynspectrum: ndarray
 
    :returns: **lightcurve** -- The one-dimensional light curve
    :rtype: ndarray
 
-   :raises ValueError: If `waterfall` is not two dimensional
+   :raises ValueError: If `dynspectrum` is not two dimensional
 
 
-.. py:function:: bowtie(data: amsterdm.constants.Array, freqs: list | numpy.ndarray | astropy.units.Quantity, tsamp: float | astropy.units.Quantity, dminterval: amsterdm.utils.FInterval | amsterdm.utils.QInterval, reffreq: float | astropy.units.Quantity | None = None, ndm: int = 50, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean') -> tuple[numpy.ndarray, numpy.ndarray]
+.. py:function:: dmtime(data: amsterdm.constants.Array, freqs: list | numpy.ndarray | astropy.units.Quantity, tsamp: float | astropy.units.Quantity, dminterval: amsterdm.utils.FInterval | amsterdm.utils.QInterval, reffreq: float | astropy.units.Quantity | None = None, ndm: int = 50, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean') -> tuple[numpy.ndarray, numpy.ndarray]
 
-   Create the data for a bowtie plot: varying DM versus time/samples
+   Returns the data for a DM-time plot: varying DM versus time/samples
 
    :param data: data containing freq on the y-axis and time on the x-axis
    :type data: np.ndarray
@@ -604,12 +604,16 @@ Module Contents
    :type backgroundrange: 2-tuple of background interval, or iterable of
    :param ndm: Number of DM samples along the y-axis
    :type ndm: int, default=50
+   :param bkg_method: What method to use for the background calculation. One of
+                      "mean", "median" or "mode". See :func:`~core.calc_background`
+                      for details.
+   :type bkg_method: str, optional
 
    :returns:
 
-             - first item: bowtie data
-               two dimensional array containing the bowtie-plot data
-             - second item: dm values matching the y-axis of the bowtie data
+             - first item: DM-time data
+               two dimensional array containing the DM-time plot data
+             - second item: dm values matching the y-axis of the DM-time data
    :rtype: tuple of [np.ndarray, np.ndarray]
 
    :raises ValueError: if the length of `freqs` doesn't match the first axis of `data`.

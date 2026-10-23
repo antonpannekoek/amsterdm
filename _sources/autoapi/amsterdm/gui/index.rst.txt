@@ -241,7 +241,7 @@ Module Contents
    .. py:method:: plot_lc(x_range=None, y_range=None)
 
 
-   .. py:method:: plot_waterfall(x_range=None, y_range=None)
+   .. py:method:: plot_dynspectrum(x_range=None, y_range=None)
 
 
    .. py:method:: plot_bkg()

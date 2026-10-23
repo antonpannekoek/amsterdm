@@ -39,7 +39,7 @@ Package Contents
    Reads the first 80 bytes from a (binary) file object to determine
    the file signature (the "magic number"). Recognized format are
    Filterbank, FITS (assumed PSRFITS) and HDF 5 (e.g. CHIME
-   waterfall).
+   dynamical spectrum).
 
    Returns a string with one of "filterbank-le", "filterbank-be"
    (Filterbank little- and big-endian), "psrfits" or "hdf5" (all

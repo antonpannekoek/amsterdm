@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Development" href="development.html"><link rel="prev" title="The base modules" href="base.html">
 
-    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
         <title>Notes on the structure optimization implementation - AmsterDM documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=acfd86a5" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
@@ -268,13 +268,13 @@
 <section id="usage">
 <h2>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h2>
 <p>For usage of the structure calculation, the code makes use of a <code class="docutils literal notranslate"><span class="pre">Structure</span></code> class. This allows it to easily store and access intermediate variables, that could then be plotted for verification plots.</p>
-<p>The input data for the <code class="docutils literal notranslate"><span class="pre">Structure</span></code> class requires so-called bowtie data: light curve data at a range of dispersion measures, in the form of a two-dimensional array. Also input are the dispersion measures themselves, a one-dimensional array.</p>
+<p>The input data for the <code class="docutils literal notranslate"><span class="pre">Structure</span></code> class requires DM-time data: light curve data at a range of dispersion measures, in the form of a two-dimensional array. Also input are the dispersion measures themselves, a one-dimensional array.</p>
 <p>Sample code would then look as follows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">burst</span> <span class="o">=</span> <span class="n">Burst</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>  <span class="c1"># or read directly from file with `burst = Burst.fromfile(path)`</span>
 
-<span class="n">tie</span><span class="p">,</span> <span class="n">dms</span> <span class="o">=</span> <span class="n">burst</span><span class="o">.</span><span class="n">bowtie</span><span class="p">(</span><span class="n">dminterval</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">backgroundrange</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">ndm</span><span class="o">=</span><span class="mi">150</span><span class="p">)</span>
+<span class="n">dmtime</span><span class="p">,</span> <span class="n">dms</span> <span class="o">=</span> <span class="n">burst</span><span class="o">.</span><span class="n">dmtime</span><span class="p">(</span><span class="n">dminterval</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">backgroundrange</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">ndm</span><span class="o">=</span><span class="mi">150</span><span class="p">)</span>
 
-<span class="n">struct</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">Structure</span><span class="p">(</span><span class="n">tie</span><span class="p">,</span> <span class="n">dms</span><span class="p">)</span>
+<span class="n">struct</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">Structure</span><span class="p">(</span><span class="n">dmtime</span><span class="p">,</span> <span class="n">dms</span><span class="p">)</span>
 
 <span class="n">optdm</span><span class="p">,</span> <span class="n">lowdm</span><span class="p">,</span> <span class="n">highdm</span><span class="p">,</span> <span class="n">mindm</span><span class="p">,</span> <span class="n">maxdm</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">calc</span><span class="p">()</span>
 </pre></div>
@@ -351,7 +351,7 @@
         <div class="bottom-of-page">
           <div class="left-details">
             <div class="copyright">
-                Copyright &#169; 2026, Amsterdam FRB group
+                Copyright &#169; 2026, Amsterdam FRB group - University of Amsterdam
             </div>
             Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
             

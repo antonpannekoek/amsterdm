@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Programmatic use" href="scripts.html"><link rel="prev" title="Documentation for AmsterDM" href="index.html">
 
-    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
         <title>Graphical User Interface - AmsterDM documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=acfd86a5" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
@@ -291,14 +291,14 @@
 <li><p>The hover button shows position information as you mouse over the plot. It is on by default, but that may feel distracting.</p></li>
 </ul>
 <p>Note that zooming in with the mouse zooms along both the x and y axes. For zooming just the x-axis (sample / time axis), prefer the box zoom.</p>
-<p>You’ll find that zooming on one plot, automatically zooms the other plot as well. So to zoom in on just the burst, it may be convenient to zoom in on the light curve plot, and the waterfall plot will follow along.</p>
+<p>You’ll find that zooming on one plot, automatically zooms the other plot as well. So to zoom in on just the burst, it may be convenient to zoom in on the light curve plot, and the dynamic spectrum plot will follow along.</p>
 <p>On the right of the page are various panels with settings. Most of these are fairly obvious, and values have been set to a reasonable default.</p>
 <p>The background limit should be in sample values (this is in contrast to the core interface when using the package directly, where it is in fractions between 0 and 1. This sets two background sections: one from zero to “left”, and one from “right” to the last sample.</p>
 <p>The dispersion measure can be set manually, for a good first estimate. After that, you can set the slider zoom factor higher, and move the slider to change the DM. This is responsive, albeit at a slow rate; the larger the input file, the slower the response. Naturally, very small changes in DM will not show any change if the time resolution of the data is too low, since then the dispersion change is all contained in one pixel width (even at the largest frequency difference).</p>
 <section id="bad-channels">
 <h3>Bad channels<a class="headerlink" href="#bad-channels" title="Link to this heading">¶</a></h3>
 <p>Any bad channels can be set in the “Channels” panel, as a comma-separated list of integers.</p>
-<p>Alternatively, you can click a row on the waterfall plot to flag that particular channel (this may take a second to register); the “Bad channels” field in the panel will be automatically updated. Click the same row again to deselect it.</p>
+<p>Alternatively, you can click a row on the dynamic spectrum plot to flag that particular channel (this may take a second to register); the “Bad channels” field in the panel will be automatically updated. Click the same row again to deselect it.</p>
 </section>
 </section>
 <section id="issues-and-to-dos">
@@ -306,14 +306,14 @@
 <p>A short list of known issues and future items to implement, specifically for the gui</p>
 <ul class="simple">
 <li><p>there may be an issue with the channel numbers, in particular for observations / telescopes where the frequencies go downward (<code class="docutils literal notranslate"><span class="pre">foff</span></code> is negative) from the reference frequency</p></li>
-<li><p>interactively selected bad channels causes a little “hop” in the waterfall plot (minor shrink and stretch); it’s unclear what’s causing this</p></li>
+<li><p>interactively selected bad channels causes a little “hop” in the dynamic spectrum plot (minor shrink and stretch); it’s unclear what’s causing this</p></li>
 <li><p>additional fields in the “Channels” panel would contain options for the user to alter the values of the frequency of channel 1, the frequency offset, and the “anchor” point of the frequency in the channel (“mid”, “top” or “bottom”).</p></li>
 <li><p>the “Dispersion measure” panel needs an additional field for the reference frequency (by default, this is the frequency for channel 1)</p></li>
 <li><p>the coherence dispersion should also be written in the “Dispersion measure” panel. Since this may be not be available in the header information of the input file, this will be a user-editable field</p></li>
 <li><p>figures to be added:</p>
 <ul>
 <li><p>signal-to-noise ratio figure</p></li>
-<li><p>bowtie plot
+<li><p>DM-time plot
 Both plots take a bit of time to generate, so it is likely that these will be on-demand plots, and not regenerated automatically with any change in DM, color scales or otherwise.</p></li>
 </ul>
 </li>
@@ -351,7 +351,7 @@ Both plots take a bit of time to generate, so it is likely that these will be on
         <div class="bottom-of-page">
           <div class="left-details">
             <div class="copyright">
-                Copyright &#169; 2026, Amsterdam FRB group
+                Copyright &#169; 2026, Amsterdam FRB group - University of Amsterdam
             </div>
             Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
             

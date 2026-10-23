@@ -1,10 +1,10 @@
 # The base modules
 
-The core and burst modules form the basis of the AmsterDM package. The core module contains a set of practical functions to dedisperse data, calculate a dynamic spectrum, a light curve or a bow-tie plot, while the burst module contains a Burst class that provides a more object-oriented interface to the data, packing all necessary details into a single Burst instance.
+The core and burst modules form the basis of the AmsterDM package. The core module contains a set of practical functions to dedisperse data, calculate a dynamic spectrum, a light curve or a DM-time plot, while the burst module contains a Burst class that provides a more object-oriented interface to the data, packing all necessary details into a single Burst instance.
 
 ## The core module
 
-The core module contains a set of functions that act on data as two- or three-dimensional NumPy arrays representing the actual data. The frequencies and sampling interval are also input, as are the dispersion measure and an optional dedispersion reference frequency. Some functions require a dispersion measure interval, such as those for creating the data for a bow-tie plot or for estimating and fitting signal-to-noise data. Details for each function are in the API documentation.
+The core module contains a set of functions that act on data as two- or three-dimensional NumPy arrays representing the actual data. The frequencies and sampling interval are also input, as are the dispersion measure and an optional dedispersion reference frequency. Some functions require a dispersion measure interval, such as those for creating the data for a DM-time plot or for estimating and fitting signal-to-noise data. Details for each function are in the API documentation.
 
 The data NumPy array uses (time) samples for the first axis and channel (frequency) for the last axis. For a two-dimensional array, these are the only axes; for a three-dimensional array, the center axis is for the polarization channels. The latter can be of size 1, in which case it is assumed to be Stokes I and is equivalent to a two-dimensional array; size 2, which assumes xx and yy polarization channels; and size 4, which assumes Stokes I, Q, U and V polarization channels. For xx-yy polarization, some functions will correct (dedisperse and bandpass-normalize) the channels individually, then add them together, to produce, for example, a dynamic spectrum or a light curve. For a set of four-Stokes channels, only the first channel is used and Q, U and V are simply ignored.
 
@@ -47,7 +47,7 @@ Similarly, there are various plotting routines available as methods. These routi
 
 ```python
 with open("myburst.dat") as burst:
-    fig, ax = burst.waterfall()
+    fig, ax = burst.dynspectrum()
     fig.savefig("myburst.png")
 ```
 
@@ -57,11 +57,11 @@ The plotting methods also take an optional `ax` keyword argument, that contains 
 
 Existing plotting methods are 
 
-- `waterfall` creates a waterfall plot (dynamic spectrum plot)
+- `dynspectrum` creates a dynamic spectrum plot
 - `lcplot` creates a light curve
 - `bgplot` creates a plot with the background summed across the samples, as well as its standard deviation (so background versus frequency)
-- `bowtieplot` creates a bow-tie plot
+- `dmtimeplot` creates a DM-time plot
 - `s2nplot` creates a signal-to-noise plot, optionally with a Gaussian fit
-- `dmplot` creates a combination of a waterfall plot, a light curve and a background plot
+- `dmplot` creates a combination of a dynamic spectrum plot, a light curve and a background plot
 
 The various plotting methods also take a set of keyword arguments for tweaking some aspects of the plots themselves, similar to Matplotlib's functions. Examples are a color-normalization range (`vmin` and `vmax`), logarithmic axes (`logscale`) or x- and y-labels (`xlabel`, `ylabel`). See the `examples/plots.py` example, or the `amsterdm.plot` module for more details.

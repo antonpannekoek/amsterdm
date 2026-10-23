@@ -8,8 +8,8 @@ amsterdm.plot
    Plotting functions for quick analysis plots
 
    These functions provide basic plots for analysis of FRBs, such as a
-   waterfall plot (dynamical spectrum), a light curve, a "bowtie" plot, a
-   (peak) signal to noise graph, and an all-in-one plot
+   dynamical spectrum plot, a light curve, a DM-time plot, a (peak)
+   signal to noise graph, and an all-in-one plot
 
    While some options can be set through keyword arguments, the functions
    aim to provide only basic functionality; for publication-level
@@ -32,10 +32,10 @@ Functions
 
    amsterdm.plot.ensure_figure
    amsterdm.plot.set_title_labels
-   amsterdm.plot.waterfall
+   amsterdm.plot.dynspectrum
    amsterdm.plot.lightcurve
    amsterdm.plot.background
-   amsterdm.plot.bowtie
+   amsterdm.plot.dmtime
    amsterdm.plot.signal2noise
    amsterdm.plot.grid
 
@@ -49,9 +49,9 @@ Module Contents
 
 .. py:function:: set_title_labels(kwargs, defaults, ax)
 
-.. py:function:: waterfall(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dm: float | astropy.units.Quantity = 0, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', background: tuple[float, float] | None = None, return_image: bool = False, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] | tuple[tuple[matplotlib.figure.Figure, matplotlib.axes.Axes], None]
+.. py:function:: dynspectrum(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dm: float | astropy.units.Quantity = 0, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', background: tuple[float, float] | None = None, return_image: bool = False, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] | tuple[tuple[matplotlib.figure.Figure, matplotlib.axes.Axes], None]
 
-   Return a waterfall plot (dynamical spectrum)
+   Return a dynamical spectrum plot
 
    The input data has to be a two-dimensional array (it can be a
    masked array). The data will be flagged for bad channels,
@@ -124,9 +124,9 @@ Module Contents
        The second ax item is used for the std-dev background
 
 
-.. py:function:: bowtie(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dminterval: amsterdm.utils.FInterval, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ndm: int = 50, trange: slice | types.EllipsisType = Ellipsis, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+.. py:function:: dmtime(data: amsterdm.constants.Array, freqs: numpy.ndarray, tsamp: float, dminterval: amsterdm.utils.FInterval, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ndm: int = 50, trange: slice | types.EllipsisType = Ellipsis, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
 
-   Create a bowtie plot: varying DM versus time/samples
+   Create a DM-time plot: varying DM versus time/samples
 
    :param dminterval: range of the dispersion measure: start and end
 
@@ -153,6 +153,10 @@ Module Contents
    :param reffreq: reference frequency used for dispersion. If None, use the
                    highest value of the given `freqs`.
    :type reffreq: float or None
+   :param bkg_method: What method to use for the background calculation. One of
+                      "mean", "median" or "mode". See :func:`~amsterdm.core.calc_background`
+                      for details.
+   :type bkg_method: str, optional
    :param ax: If given, use this axes to draw the graph on
    :type ax: Matplotlib Axes, default=None
 

@@ -290,7 +290,7 @@ Module Contents
       This will also dedisperses the data (which is intrinsic, so
       the data will be altered), unless `dm` is 0 or None.
 
-      For details, see `core.calc_background`
+      For details, see :func:`~amsterdm.core.calc_background`
 
       :returns: The background value and standard deviation across all frequency channels
       :rtype: Tuple of 2 Arrays
@@ -390,17 +390,62 @@ Module Contents
    .. py:method:: lightcurve(dm: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean')
 
 
-   .. py:method:: bowtie(dminterval: amsterdm.utils.FInterval, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ndm: int = 50, reffreq: float | None = None) -> tuple[numpy.ndarray, numpy.ndarray]
+   .. py:method:: dmtime(dminterval: amsterdm.utils.FInterval, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, ndm: int = 50, reffreq: float | None = None, bkg_method: str = 'mean') -> tuple[numpy.ndarray, numpy.ndarray]
+
+      Returns the data for a DM-time plot: varying DM versus time/samples
+
+      See also :func:`~amsterdm.core.dmtime`.
+
+      :param dminterval: range of the dispersion measure: start and stop
+
+                         An average DM is calculated from this range, which is then
+                         used in the calculation of the background: the data is
+                         dedispersed to this mean DM and the background is calculated,
+                         which is used for the bandpass correction.
+      :type dminterval: tuple[float, float]
+      :param backgroundrange: 2-tuples of background fraction intervals.
+
+                              Each interval is a 2-tuple that contains two floating point
+                              values between 0 and 1, which are the fractions of the full
+                              data sample (time-axis) range that contain a background
+                              section. All sections are combined, after which the background
+                              is calculated (using the median or mean value over the
+                              combined area).
+
+                              The background is determined with respect to the average DM of
+                              the given `dm` interval.
+      :type backgroundrange: 2-tuple of background interval, or iterable of
+      :param ndm: Number of DM samples along the y-axis
+      :type ndm: int, default=50
+      :param reffreq: reference frequency used for dispersion. If None, use the
+                      highest value of the given `freqs`.
+      :type reffreq: float or None
+      :param bkg_method: What method to use for the background calculation. One of
+                         "mean", "median" or "mode". See
+                         :func:`~amsterdm.core.calc_background` for details.
+      :type bkg_method: str, optional
+
+      :returns:
+
+                - first item: DM-time data
+                  two dimensional array containing the DM-time plot data
+                - second item: dm values matching the y-axis of the DM-time data
+      :rtype: tuple of [np.ndarray, np.ndarray]
+
+      :raises ValueError: if the length of `freqs` doesn't match the first axis of `data`.
+
 
 
    .. py:method:: signal2noise(dminterval: amsterdm.utils.FInterval, dm: float | None = None, reffreq: float | None = None, ndm: int = 50, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', background: tuple[float | dict, float | dict] = None, peak: bool = True) -> tuple[amsterdm.constants.Array, amsterdm.constants.Array]
 
 
-   .. py:method:: waterfall(dm: float | astropy.units.Quantity | None = None, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+   .. py:method:: dynspectrumplot(dm: float | astropy.units.Quantity | None = None, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
 
-      Return a waterfall plot for the burst
+      Return a dynamical spectrum plot for the burst
 
-      :param See `plot.waterfall` for a description of most parameters.:
+      See :func:`~amsterdm.plot.dynspectrum` for a description of
+          most parameters.
+
       :param dm: Disperson measure
 
                  Dedisperse the data for the given value.
@@ -418,7 +463,8 @@ Module Contents
 
       Return a light curve plot for the burst
 
-      :param See `plot.lightcurve` for a description of most parameters.:
+      See :func:`~amsterdm.plot.lightcurve` for a description of most parameters.
+
       :param dm: Disperson measure
 
                  Dedisperse the data for the given value.
@@ -440,7 +486,8 @@ Module Contents
       in the sample dimension. It will plot both the background and
       its standard deviation.
 
-      :param See `plot.background` for a description of most parameters.:
+      See :func:`~amsterdm.plot.background` for a description of most parameters.
+
       :param dm: Disperson measure
 
                  Dedisperse the data for the given value.
@@ -454,11 +501,11 @@ Module Contents
 
 
 
-   .. py:method:: bowtieplot(dminterval: amsterdm.utils.FInterval, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ndm: int = 50, trange: slice | types.EllipsisType = Ellipsis, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+   .. py:method:: dmtimeplot(dminterval: amsterdm.utils.FInterval, reffreq: float | None = None, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', ndm: int = 50, trange: slice | types.EllipsisType = Ellipsis, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
 
-      Return a bowtie plot for the burst
+      Return a DM-time plot for the burst
 
-      :param See `plot.bowtie` for a description of most parameters.:
+      See :func:`~amsterdm.plot.dmtime` for a description of most parameters.
 
       :rtype: A tuple of [Figure, Axes]
 
@@ -468,7 +515,7 @@ Module Contents
 
       Return a signal-to-noise plot for the burst
 
-      :param See `plot.signal2noise` for a description of most parameters.:
+      See :func:`~amsterdm.plot.signal2noise` for a description of most parameters.
 
       :rtype: A tuple of [Figure, Axes]
 
@@ -476,9 +523,11 @@ Module Contents
 
    .. py:method:: dmplot(dminterval: amsterdm.utils.FInterval, dm: float | None = None, reffreq: float | None = None, ndm: int = 50, badchannels: set | list | numpy.ndarray | None = None, backgroundrange: amsterdm.utils.FInterval | tuple[amsterdm.utils.FInterval] = DEFAULT_BACKGROUND_RANGE, bkg_method: str = 'mean', peak: bool = True, dm_coherent: float = 0, ax: matplotlib.axes.Axes | None = None, **options) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
 
-      Plot a combination of a waterfall plot, a light curve and background
+      Plot a combination of a dynamical spectrum plot, a light
+      curve and background
 
-      :param See `plot.grid` for a description of most parameters.:
+      See :func:`~amsterdm.plot.grid` for a description of most parameters.
+
       :param dm: Disperson measure
 
                  Plot the data at the given dedispersion.
