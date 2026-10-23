@@ -595,7 +595,7 @@ class Burst:
         This will also dedisperses the data (which is intrinsic, so
         the data will be altered), unless `dm` is 0 or None.
 
-        For details, see `core.calc_background`
+        For details, see :func:`~amsterdm.core.calc_background`
 
         Returns
         -------
@@ -806,18 +806,72 @@ class Burst:
 
         return lightcurve
 
-    def bowtie(
+    def dmtime(
         self,
         dminterval: FInterval,
         badchannels: set | list | np.ndarray | None = None,
         backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
-        bkg_method: str = "mean",
         ndm: int = 50,
         reffreq: float | None = None,
+        bkg_method: str = "mean",
     ) -> tuple[np.ndarray, np.ndarray]:
+        """Returns the data for a DM-time plot: varying DM versus time/samples
+
+        See also :func:`~amsterdm.core.dmtime`.
+
+        Parameters
+        ----------
+
+        dminterval : tuple[float, float]
+            range of the dispersion measure: start and stop
+
+            An average DM is calculated from this range, which is then
+            used in the calculation of the background: the data is
+            dedispersed to this mean DM and the background is calculated,
+            which is used for the bandpass correction.
+
+        backgroundrange: 2-tuple of background interval, or iterable of
+            2-tuples of background fraction intervals.
+
+            Each interval is a 2-tuple that contains two floating point
+            values between 0 and 1, which are the fractions of the full
+            data sample (time-axis) range that contain a background
+            section. All sections are combined, after which the background
+            is calculated (using the median or mean value over the
+            combined area).
+
+            The background is determined with respect to the average DM of
+            the given `dm` interval.
+
+        ndm : int, default=50
+            Number of DM samples along the y-axis
+
+        reffreq: float or None
+            reference frequency used for dispersion. If None, use the
+            highest value of the given `freqs`.
+
+        bkg_method: str, optional
+            What method to use for the background calculation. One of
+            "mean", "median" or "mode". See
+            :func:`~amsterdm.core.calc_background` for details.
+
+        Returns
+        -------
+        tuple of [np.ndarray, np.ndarray]
+            - first item: DM-time data
+              two dimensional array containing the DM-time plot data
+            - second item: dm values matching the y-axis of the DM-time data
+
+        Raises
+        ------
+        ValueError
+            if the length of `freqs` doesn't match the first axis of `data`.
+
+        """
+
         data = core.flag(self.data, badchannels)
 
-        return core.bowtie(
+        return core.dmtime(
             data,
             self.freqs,
             self.tsamp,
@@ -858,7 +912,7 @@ class Burst:
 
         return dms, ratios
 
-    def waterfall(
+    def dynspectrumplot(
         self,
         dm: float | Quantity | None = None,
         reffreq: float | None = None,
@@ -868,14 +922,15 @@ class Burst:
         ax: Axes | None = None,
         **options,
     ) -> tuple[Figure, Axes]:
-        """Return a waterfall plot for the burst
+        """Return a dynamical spectrum plot for the burst
+
+        See :func:`~amsterdm.plot.dynspectrum` for a description of
+            most parameters.
 
         Parameters
         ----------
 
-        See `plot.waterfall` for a description of most parameters.
-
-        dm : float, optional
+        dm: float, optional
 
             Disperson measure
 
@@ -884,7 +939,6 @@ class Burst:
             If set to None, the default value, the internal `dm`
             attribute of the burst is used. If this is also None, a
             warning is issued and no dedispersion is applied.
-
 
         Returns
         -------
@@ -905,7 +959,7 @@ class Burst:
         else:
             data = self.data
 
-        return plot.waterfall(
+        return plot.dynspectrum(
             data,
             self.freqs,
             self.tsamp,
@@ -930,12 +984,12 @@ class Burst:
     ) -> tuple[Figure, Axes]:
         """Return a light curve plot for the burst
 
+        See :func:`~amsterdm.plot.lightcurve` for a description of most parameters.
+
         Parameters
         ----------
 
-        See `plot.lightcurve` for a description of most parameters.
-
-        dm : float, optional
+        dm: float, optional
 
             Disperson measure
 
@@ -994,10 +1048,10 @@ class Burst:
         in the sample dimension. It will plot both the background and
         its standard deviation.
 
+        See :func:`~amsterdm.plot.background` for a description of most parameters.
+
         Parameters
         ----------
-
-        See `plot.background` for a description of most parameters.
 
         dm : float, optional
 
@@ -1035,7 +1089,7 @@ class Burst:
             **options,
         )
 
-    def bowtieplot(
+    def dmtimeplot(
         self,
         dminterval: FInterval,
         reffreq: float | None = None,
@@ -1047,12 +1101,9 @@ class Burst:
         ax: Axes | None = None,
         **options,
     ) -> tuple[Figure, Axes]:
-        """Return a bowtie plot for the burst
+        """Return a DM-time plot for the burst
 
-        Parameters
-        ----------
-
-        See `plot.bowtie` for a description of most parameters.
+        See :func:`~amsterdm.plot.dmtime` for a description of most parameters.
 
         Returns
         -------
@@ -1067,7 +1118,7 @@ class Burst:
         else:
             data = self.data
 
-        return plot.bowtie(
+        return plot.dmtime(
             data,
             self.freqs,
             self.tsamp,
@@ -1097,10 +1148,7 @@ class Burst:
     ) -> tuple[Figure, Axes]:
         """Return a signal-to-noise plot for the burst
 
-        Parameters
-        ----------
-
-        See `plot.signal2noise` for a description of most parameters.
+        See :func:`~amsterdm.plot.signal2noise` for a description of most parameters.
 
         Returns
         -------
@@ -1145,12 +1193,13 @@ class Burst:
         ax: Axes | None = None,
         **options,
     ) -> tuple[Figure, Axes]:
-        """Plot a combination of a waterfall plot, a light curve and background
+        """Plot a combination of a dynamical spectrum plot, a light
+        curve and background
+
+        See :func:`~amsterdm.plot.grid` for a description of most parameters.
 
         Parameters
         ----------
-
-        See `plot.grid` for a description of most parameters.
 
         dm : float, optional
 

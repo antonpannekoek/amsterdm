@@ -1,8 +1,8 @@
 """Plotting functions for quick analysis plots
 
 These functions provide basic plots for analysis of FRBs, such as a
-waterfall plot (dynamical spectrum), a light curve, a "bowtie" plot, a
-(peak) signal to noise graph, and an all-in-one plot
+dynamical spectrum plot, a light curve, a DM-time plot, a (peak)
+signal to noise graph, and an all-in-one plot
 
 While some options can be set through keyword arguments, the functions
 aim to provide only basic functionality; for publication-level
@@ -70,7 +70,7 @@ def set_title_labels(kwargs, defaults, ax):
         ax.set_ylabel(ylabel)
 
 
-def waterfall(
+def dynspectrum(
     data: Array,
     freqs: np.ndarray,
     tsamp: float,
@@ -84,7 +84,7 @@ def waterfall(
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes] | tuple[tuple[Figure, Axes], None]:
-    """Return a waterfall plot (dynamical spectrum)
+    """Return a dynamical spectrum plot
 
     The input data has to be a two-dimensional array (it can be a
     masked array). The data will be flagged for bad channels,
@@ -332,7 +332,7 @@ def background(
     return (fig, ax)
 
 
-def bowtie(
+def dmtime(
     data: Array,
     freqs: np.ndarray,
     tsamp: float,
@@ -346,11 +346,10 @@ def bowtie(
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
-    """Create a bowtie plot: varying DM versus time/samples
+    """Create a DM-time plot: varying DM versus time/samples
 
     Parameters
     ----------
-
 
     dminterval : tuple[float, float] (FInterval)
         range of the dispersion measure: start and end
@@ -383,6 +382,11 @@ def bowtie(
         reference frequency used for dispersion. If None, use the
         highest value of the given `freqs`.
 
+    bkg_method: str, optional
+        What method to use for the background calculation. One of
+        "mean", "median" or "mode". See :func:`~amsterdm.core.calc_background`
+        for details.
+
     ax : Matplotlib Axes, default=None
         If given, use this axes to draw the graph on
     """
@@ -395,7 +399,7 @@ def bowtie(
 
     if badchannels is not None:
         data = core.flag(data, badchannels)
-    data, _ = core.bowtie(
+    data, _ = core.dmtime(
         data,
         freqs,
         tsamp,
@@ -636,7 +640,7 @@ def grid(
     w_ax = figure.add_subplot(gs[1, 1])
     c_ax = figure.add_subplot(gs[1, 0])
     s2n_ax = figure.add_subplot(gs[1, 2])
-    _, image = waterfall(
+    _, image = dynspectrum(
         data,
         freqs,
         tsamp,

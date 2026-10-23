@@ -4,16 +4,16 @@
 
 For usage of the structure calculation, the code makes use of a `Structure` class. This allows it to easily store and access intermediate variables, that could then be plotted for verification plots.
 
-The input data for the `Structure` class requires so-called bowtie data: light curve data at a range of dispersion measures, in the form of a two-dimensional array. Also input are the dispersion measures themselves, a one-dimensional array.
+The input data for the `Structure` class requires DM-time data: light curve data at a range of dispersion measures, in the form of a two-dimensional array. Also input are the dispersion measures themselves, a one-dimensional array.
 
 Sample code would then look as follows:
 
 ```
 burst = Burst(header, data)  # or read directly from file with `burst = Burst.fromfile(path)`
 
-tie, dms = burst.bowtie(dminterval=[-1, 1], backgroundrange=[0.5, 1], ndm=150)
+dmtime, dms = burst.dmtime(dminterval=[-1, 1], backgroundrange=[0.5, 1], ndm=150)
 
-struct = structure.Structure(tie, dms)
+struct = structure.Structure(dmtime, dms)
 
 optdm, lowdm, highdm, mindm, maxdm = struct.calc()
 ```

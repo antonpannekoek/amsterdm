@@ -7,7 +7,7 @@ def read_fileformat(fobj):
     Reads the first 80 bytes from a (binary) file object to determine
     the file signature (the "magic number"). Recognized format are
     Filterbank, FITS (assumed PSRFITS) and HDF 5 (e.g. CHIME
-    waterfall).
+    dynamical spectrum).
 
     Returns a string with one of "filterbank-le", "filterbank-be"
     (Filterbank little- and big-endian), "psrfits" or "hdf5" (all
@@ -34,7 +34,7 @@ def read_fileformat(fobj):
         else:
             return "fits"
     elif testbytes[:8] == b"\x89HDF\x0d\x0a\x1a\x0a":
-        format = "hdf5"  # e.g. CHIME waterfall data
+        format = "hdf5"  # e.g. CHIME dynamical spectrum data
     else:
         raise ValueError("unknown file format")
     fobj.seek(filepos)

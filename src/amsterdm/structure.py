@@ -57,7 +57,7 @@ class Structure:
         ----------
             data: two-dimensional array
 
-                This should be "bowtie" data: a two-dimensional array of
+                This should be DM-time data: a two-dimensional array of
                 dispersion measures along the y-axis versus stacked time
                 samples (i.e., light curves) along the x-axis.
 
@@ -277,7 +277,7 @@ class Structure:
         grid: bool = True,
         **kwargs,
     ) -> tuple[Figure, Axes]:
-        """Plot the spectrum of the (bowtie) data
+        """Plot the spectrum of the (DM-time) data
 
         Plots dct(I) versus k on a log-log plot.
 

@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "AmsterDM"
-copyright = "2026, Amsterdam FRB group"
+copyright = "2026, Amsterdam FRB group - University of Amsterdam"
 author = "Amsterdam FRB group"
 
 # -- General configuration ---------------------------------------------------

@@ -245,7 +245,7 @@ class BurstPlot(param.Parameterized):
         return lcplot
 
     @param.depends("update_plot", "cmin", "cmax", "colormap")
-    def plot_waterfall(self, x_range=None, y_range=None):
+    def plot_dynspectrum(self, x_range=None, y_range=None):
         samples = np.arange(self.stokesI.shape[0])
         ds = xr.Dataset(
             {"data": (["samples", "channel"], self.stokesI)},
@@ -254,7 +254,7 @@ class BurstPlot(param.Parameterized):
         vmin, vmax = np.nanpercentile(self.stokesI, (self.cmin * 100, self.cmax * 100))
         clim = (vmin, vmax)
 
-        waterfallplot = (
+        dynspectrumplot = (
             ds.hvplot(
                 colorbar=True,
                 clim=clim,
@@ -285,14 +285,14 @@ class BurstPlot(param.Parameterized):
             line_width=0,  # Removes the border line if preferred
         )
         background_area = bkg_left * bkg_right
-        waterfallplot = waterfallplot * background_area
+        dynspectrumplot = dynspectrumplot * background_area
 
         if x_range:
-            waterfallplot = waterfallplot.opts(
+            dynspectrumplot = dynspectrumplot.opts(
                 xlim=x_range,
             )
 
-        return waterfallplot
+        return dynspectrumplot
 
     @param.depends("update_plot")
     def plot_bkg(self):
@@ -348,15 +348,17 @@ class BurstPlot(param.Parameterized):
         # The hooks also need to be moved here, due to some oddity with
         # the secondary x-axis that would cause its label to be overwritten
         # with that of the primary x-axis
-        waterfallplot = hv.DynamicMap(self.plot_waterfall, streams=[self.range_stream])
-        waterfallplot = rasterize(waterfallplot, dynamic=True).opts(
+        dynspectrumplot = hv.DynamicMap(
+            self.plot_dynspectrum, streams=[self.range_stream]
+        )
+        dynspectrumplot = rasterize(dynspectrumplot, dynamic=True).opts(
             hooks=[self.add_physical_axes, self.move_colorbar]
         )
 
-        self.tap.source = waterfallplot
+        self.tap.source = dynspectrumplot
 
         lcplot = hv.DynamicMap(self.plot_lc, streams=[self.range_stream])
-        plots = pn.Column(lcplot, pn.Row(bkgplots, waterfallplot))
+        plots = pn.Column(lcplot, pn.Row(bkgplots, dynspectrumplot))
         trunclc = pn.Param(
             self.param.trunclc,
             widgets={"trunclc": {"type": pn.widgets.FloatInput, "width": 100}},

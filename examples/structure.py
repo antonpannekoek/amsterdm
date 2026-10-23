@@ -112,7 +112,7 @@ def run():
     # and 'chans' is automatically determined from the data
     burst = Burst(header, data)
 
-    tie, dms = burst.bowtie(dminterval=[-1, 1], backgroundrange=[0.5, 1], ndm=150)
+    tie, dms = burst.dmplot(dminterval=[-1, 1], backgroundrange=[0.5, 1], ndm=150)
     assert tie.shape == (150, 1024)  # first axis DMs, second axis samples
     assert len(dms) == 150
 
@@ -151,7 +151,7 @@ def run():
 
     # Create a combined plot of
     # - the dynamic spectrum
-    # - bowtie plot
+    # - DM-time plot
     # - spectrum plot with k_c overplotted
     # - structure parameter vs DM plot
     # - adjusted structure parameter vs DM plot
@@ -166,7 +166,7 @@ def run():
     fig, ax = plt.subplot_mosaic(
         [
             ["results", "results"],
-            ["waterfall", "bowtie"],
+            ["dynspectrum", "dmtime"],
             ["spectrum", "structure"],
             ["adj_structure", "uncertainty"],
             ["rel_uncertainty", "detr_noise"],
@@ -185,17 +185,17 @@ def run():
     )
     ax["results"].set_axis_off()
 
-    burst.waterfall(backgroundrange=[0.5, 1], ax=ax["waterfall"], cbar=False)
-    ax["waterfall"].set_title("Dynamic spectrum")
+    burst.dynspectrumplot(backgroundrange=[0.5, 1], ax=ax["dynspectrum"], cbar=False)
+    ax["dynspectrum"].set_title("Dynamic spectrum")
 
-    burst.bowtieplot(
+    burst.dmtimeplot(
         dminterval=[-1, 1],
         backgroundrange=[0.5, 1],
         ndm=150,
-        ax=ax["bowtie"],
+        ax=ax["dmtime"],
         cbar=False,
     )
-    ax["bowtie"].set_title("Bow-tie plot")
+    ax["dmtime"].set_title("DM-time plot")
 
     struct.plot_spectrum(ax=ax["spectrum"])
 
