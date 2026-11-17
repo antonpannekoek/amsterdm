@@ -168,17 +168,7 @@ class Burst:
 
         _poltype = None
         if poltype is not None:
-            # User-supplied polarization type; verify
             _poltype = poltype.lower()
-            if _poltype == "i" and self.data.ndim == 3:
-                if self.data.shape[1] != 1:
-                    raise ValueError(
-                        "second data dimension does not match the polarization type"
-                    )
-            if _poltype != "i" and self.data.ndim == 2:
-                raise ValueError(
-                    "second data dimension does not match the polarization type"
-                )
         else:
             # Determine the polarization from the header and data
             if self.data.ndim == 2:
