@@ -166,27 +166,57 @@ class Burst:
     def _get_poltype(self, poltype=None):
         """Verify or determine the polarization type from the data and header"""
 
-        _poltype = None
+        # Obtain an initial polarization type from the header
+        hpoltype = None
+        for key in HEADER_POLKEYS:
+            hpoltype = self.header.get(key)
+            if hpoltype:
+                hpoltype = hpoltype.lower()
+                break
+
+        _poltype = hpoltype
+        # User overridden polarization type
         if poltype is not None:
             _poltype = poltype.lower()
+            if hpoltype and hpoltype != _poltype:
+                logger.warning(
+                    "user-supplied polarization type and header polarization type mismatch"
+                )
+            if _poltype == "i" and self.data.ndim == 3 and self.data.shape[1] != 1:
+                logger.warning(
+                    "setting polarization type to Stokes I, but more polarization channels available"
+                )
+            if _poltype != "i" and self.data.ndim == 2:
+                logger.warning(
+                    "only one polarization channel available, but the selected polarization type is not Stokes I"
+                )
         else:
-            # Determine the polarization from the header and data
+            # Determine the polarization from the data; verify with header type
             if self.data.ndim == 2:
+                # Ignore the header keyword; assume Stokes I
+                logger.info("Two dimensional data found; Stokes I assumed")
                 _poltype = "i"
             elif self.data.ndim == 3:
                 if self.data.shape[1] == 1:
+                    if hpoltype and hpoltype != "i":
+                        logger.warning(
+                            "header polarization keyword does not match data shape"
+                        )
+                    logger.info(
+                        "Three dimensional data found, with second dimension 1; Stokes I assumed"
+                    )
                     _poltype = "i"
                 elif self.data.shape[1] == 4:
-                    # Use header to determine the polarization
-                    _poltype = None
-                    for key in HEADER_POLKEYS:
-                        _poltype = self.header.get(key)
-                        if _poltype:
-                            break
-                    else:
+                    # Use header to determine the polarization channels
+                    _poltype = hpoltype
+                    if not _poltype:
                         raise ValueError(
                             "polarization type can't be determined; please specify using the 'poltype' keyword"
                         )
+                else:
+                    raise ValueError(
+                        "Polarization can't be uniquely determined from data; please specify using the 'poltype' keyword"
+                    )
             else:
                 raise ValueError(f"invalid data dimensions: {self.data.shape}")
 
@@ -201,7 +231,7 @@ class Burst:
             _poltype = "rl"
 
         if _poltype not in ["xy", "ab", "rl", "i", "iquv"]:
-            raise ValueError(f"unknown polarization type {poltype}")
+            raise ValueError(f"unknown polarization type {_poltype}")
 
         self.poltype = _poltype
 
