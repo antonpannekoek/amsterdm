@@ -686,8 +686,8 @@ class Burst:
         """
 
         if self.header.get("pol_type", "").lower() == "iquv":
-            # Four polarization channels; use only stokes I
-            data = self.data[:, 2, :]
+            # Four polarization channels; use only Stokes I
+            data = self.data[:, 0, :]
             logger.info("Selecting Stokes I data for dynamic spectrum")
         else:
             data = self.data
