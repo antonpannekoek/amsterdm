@@ -276,10 +276,11 @@ class Burst:
             self.data = np.moveaxis(data, 0, 1)
             logger.info("Converting AA-BB data to IQUV")
         if self.poltype == "ab":
+            # AABBCRCI convention
             data = np.ma.array(
                 [
                     self.data[:, 0, :] + self.data[:, 1, :],
-                    self.data[:, 0, :] + self.data[:, 1, :],
+                    self.data[:, 0, :] - self.data[:, 1, :],
                     2 * self.data[:, 2, :],
                     2 * self.data[:, 3, :],
                 ]
