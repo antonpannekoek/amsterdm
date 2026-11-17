@@ -223,12 +223,16 @@ class Burst:
         # Transform to AmsterDM usage
         if _poltype:
             _poltype = _poltype.lower()
+        if _poltype == "aa+bb":
+            _poltype = "i"
         if _poltype == "xx-yy":
             _poltype = "xy"
-        if _poltype == "aa-bb":
+        if _poltype in ("aa-bb", "aabbcrci"):
             _poltype = "ab"
         if _poltype == "rr-ll":
             _poltype = "rl"
+        if _poltype == "aabb":
+            raise ValueError("two-channel AABB polarization type not supported")
 
         if _poltype not in ["xy", "ab", "rl", "i", "iquv"]:
             raise ValueError(f"unknown polarization type {_poltype}")
