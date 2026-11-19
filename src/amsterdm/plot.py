@@ -81,6 +81,7 @@ def dynspectrum(
     bkg_method: str = "mean",
     background: tuple[float, float] | None = None,
     return_image: bool = False,
+    poltype: str = "",
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes] | tuple[tuple[Figure, Axes], None]:
@@ -141,8 +142,8 @@ def dynspectrum(
 
     if not isinstance(data, (np.ndarray, np.ma.MaskedArray)):
         raise ValueError("data is not a NumPy (masked) array")
-    if data.ndim != 2:
-        raise ValueError("data is not two-dimensional")
+    # if data.ndim != 2:
+    #    raise ValueError("data is not two-dimensional")
 
     # Handle arguments
     if badchannels is None:
@@ -171,7 +172,15 @@ def dynspectrum(
         data = core.flag(data, badchannels)
 
     stokesI, _ = core.create_dynspectrum(
-        data, freqs, tsamp, dm, reffreq, backgroundrange, bkg_method, background
+        data,
+        freqs,
+        tsamp,
+        dm,
+        reffreq,
+        backgroundrange,
+        bkg_method,
+        background,
+        poltype=poltype,
     )
 
     if fillmask:
@@ -232,6 +241,7 @@ def lightcurve(
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "mean",
+    poltype: str = "",
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
@@ -256,7 +266,14 @@ def lightcurve(
     if badchannels is not None:
         data = core.flag(data, badchannels)
     lightcurve, _ = core.calc_lightcurve(
-        data, freqs, tsamp, dm, reffreq, backgroundrange, bkg_method=bkg_method
+        data,
+        freqs,
+        tsamp,
+        dm,
+        reffreq,
+        backgroundrange,
+        bkg_method=bkg_method,
+        poltype=poltype,
     )
 
     if logscale:
@@ -283,6 +300,7 @@ def background(
     badchannels: set | list | np.ndarray | None = None,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     method: str = "mean",
+    poltype: str = "",
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
@@ -343,6 +361,7 @@ def dmtime(
     bkg_method: str = "mean",
     ndm: int = 50,
     trange: slice | EllipsisType = Ellipsis,
+    poltype: str = "",
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
@@ -408,6 +427,7 @@ def dmtime(
         ndm=ndm,
         backgroundrange=backgroundrange,
         bkg_method=bkg_method,
+        poltype=poltype,
     )
 
     # Calculate the extent for the imshow axes
@@ -486,6 +506,7 @@ def signal2noise(
     bkg_method: str = "mean",
     peak: bool = True,
     fit: bool = False,
+    poltype: str = "",
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
@@ -506,6 +527,7 @@ def signal2noise(
         backgroundrange=backgroundrange,
         bkg_method=bkg_method,
         peak=peak,
+        poltype=poltype,
     )
 
     xlabel = options.get("xlabel", "DM")
@@ -593,6 +615,7 @@ def grid(
     foff: float = 0,
     cfreq: float = 1,
     tstart: float | None = None,
+    poltype: str = "",
     ax: Axes | None = None,
     **options,
 ) -> tuple[Figure, Axes]:
@@ -650,6 +673,7 @@ def grid(
         backgroundrange=backgroundrange,
         bkg_method=bkg_method,
         return_image=True,
+        poltype=poltype,
         ax=w_ax,
         cbar=False,
     )
@@ -665,6 +689,7 @@ def grid(
         badchannels=badchannels,
         backgroundrange=backgroundrange,
         bkg_method=bkg_method,
+        poltype=poltype,
         ax=lc_ax,
     )
     lc_ax.set_title("Light curve")
@@ -681,6 +706,7 @@ def grid(
         bkg_method=bkg_method,
         peak=peak,
         peak_interval=peak_interval,
+        poltype=poltype,
         ax=s2n_ax,
     )
     s2n_ax.yaxis.set_label_position("right")

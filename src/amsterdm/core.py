@@ -62,7 +62,7 @@ from astropy.units import Quantity
 import numpy as np
 
 from .constants import DEFAULT_BACKGROUND_RANGE, DMCONST, DMUNIT, Array
-from .utils import FInterval, QInterval, ensure_interval_list
+from .utils import FInterval, QInterval, ensure_interval_list, _format_data
 
 
 __all__ = [
@@ -127,158 +127,6 @@ def ensure_quantities(
         dminterval = (dminterval[0] * DMUNIT, dminterval[1] * DMUNIT)
 
     return (tsamp, freqs_, reffreq, dm, dminterval)
-
-
-def _format_data(
-    data: Array | dict[str, Array], poltype: str = ""
-) -> tuple[Array, str]:
-    """Format input data to into a consistent 3d array
-
-    This function takes the input data and reformats it into a
-    consistent three-dimensional array. This output array may have a
-    dimension of 1 for the second axis, the polarization channel axis,
-    in case the input was simply two-dimensional (or three-dimensional
-    with a dimension 1 second axis).
-
-    `poltype` sets the polarization type and can be "iquv", "xy" or
-    "ab", but in most cases is deduced from the input (if left at its
-    default of an empty string). If the deduced polarization type does
-    not match the `poltype` argument, a `ValueError` is raised.
-
-    The input can be a two-dimensional array, a three-dimensional
-    array or a dict of various polarization channels: each dict value
-    is a two-dimensional array for that specific channel. The keys
-    indicate the polarization type of the input, and can be matching
-    keys "i", "q", "u", "v", "xx", "yy", "aa", "bb"; all format
-    strings and keys are case independent. There is a minimal check
-    that if "xx" is present, "yy" should be present (and vice versa),
-    and the same for "aa" and "bb"; for "q", "u" and "v", there should
-    at least be a "i" key present as well. From the keys, the
-    polarization type is deduced, and if `poltype` is not empty, a
-    check is made to see if this matches.
-
-    If the input is three-dimensional array, the deduced polarization
-    type depends on the size of the polarization channel dimension
-    (the second, center, axis): if it's 1, Stokes I is assumed; if 4,
-    Stokes I, Q, U and V is assumed; if 2, `poltype` should be one of
-    "xy" or "ab" to give the polarization type.
-
-    Returns
-    -------
-        A tuple of a three-dimensional array and a string:
-        - The three-dimensional array matches the input data, and its
-          dimensions are (samples/time, polarization,
-          channel/frequency)
-        - the string describes the (deduced) polarization type
-
-    Raises
-    ------
-    ValueError
-        - in case the deduced format (from the polarization channel
-          dimension or the dict keys) does not match the given
-          `poltype` (if not empty).
-        - in case of a missing key (e.g., "yy" missing when "xx" given)
-        - in case of incompatible keys (e.g., "xx" and "bb")
-        - for a dict input: when any value array is not two-dimensional
-        - for a dict input: when the value arrays are not the same shape
-
-    """
-
-    # List of valid `poltype`s and their matching dict keys
-    polkeys = {
-        "xy": ("xx", "yy"),
-        "ab": ("aa", "bb"),
-        "i": ("i",),
-        "iquv": ("i", "q", "u", "v"),
-        "iq": ("i", "q"),
-        "iu": ("i", "u"),
-        "iv": ("i", "v"),
-        "iqu": ("i", "q", "u"),
-    }
-
-    poltype = poltype.lower()
-    if poltype and poltype not in polkeys:
-        raise ValueError("invalid polarization type")
-
-    if isinstance(data, dict):
-        keys = [key.lower() for key in data.keys()]
-        pairs = [
-            ("xx", "yy"),
-            ("yy", "xx"),
-            ("aa", "bb"),
-            ("bb", "aa"),
-            ("q", "i"),
-            ("u", "i"),
-            ("v", "i"),
-        ]
-        for key1, key2 in pairs:
-            if key1 in keys:
-                if key2 not in keys:
-                    raise ValueError(f"missing '{key2}' key to match '{key1}'")
-        if poltype:  # validate polarization type
-            if set(polkeys[poltype]) != keys:
-                raise ValueError("`poltype` does not match the input dict keys")
-        shape = None
-        for arr in data.values():
-            if not isinstance(arr, (np.ndarray, np.ma.MaskedArray)):
-                raise ValueError("dict value is not an array")
-            if arr.ndim != 2:
-                raise ValueError("dict value is not two-dimensional")
-            if not shape:
-                shape = arr.shape
-            elif arr.shape != shape:
-                raise ValueError("dict values are inconsistent in shape")
-
-        # reverse the dict, to reformat the data and set an output `poltype`
-        inv = {value: key for key, value in polkeys.items()}
-        # Note: polarization names are conveniently in alphabetical order
-        skeys = tuple(sorted(keys))
-        poltype = inv[skeys]
-        ndim = len(poltype)
-        shape = data[skeys[0]].shape
-        shape = (shape[0], ndim, shape[1])
-        # Can we avoid all the copying here?
-        fmtdata = np.empty(shape)
-        for i, key in enumerate(skeys):
-            fmtdata[:, i, :] = data[key][...]
-
-    else:
-        if not isinstance(data, (np.ndarray, np.ma.MaskedArray)):
-            raise ValueError("data is not an array")
-        if data.ndim not in (2, 3):
-            raise ValueError("data is not two- or three-dimensional")
-        shape = data.shape
-
-        if data.ndim == 3:
-            poldim = shape[1]
-            if poltype:
-                if len(poltype) != poldim:
-                    raise ValueError(
-                        "polarization type does not match the number "
-                        "of polarization channels"
-                    )
-            else:
-                # Deduce a default polarization type from the dimension
-                if poldim == 1:
-                    poltype = "i"
-                elif poldim == 2:  # to do: raise error as this is ambiguous?
-                    poltype = "xy"
-                elif poldim == 3:
-                    poltype = "iqu"
-                elif poldim == 4:
-                    poltype = "iquv"
-                else:
-                    raise ValueError("incorrect number of polarization channels")
-            fmtdata = data
-
-        else:  # two-dimensional data
-            if poltype and poltype != "i":
-                raise ValueError("incorrect polarization type for two-dimensional data")
-            # Turn the 2D data into 3D data for consistency
-            fmtdata = data.reshape(shape[0], 1, shape[1])
-            poltype = "i"
-
-    return fmtdata, poltype
 
 
 def downsample(
@@ -962,6 +810,7 @@ def flag(data: Array, badchannels: set | list | np.ndarray) -> np.ma.MaskedArray
     return mdata
 
 
+# To do: deprecate and remove this function
 def calc_intensity(
     data: dict[str, Array] | Array,
     freqs: np.ndarray,
@@ -1088,6 +937,7 @@ def _create_dynspectra(
     backgroundrange: FInterval | tuple[FInterval] | None = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str | None = "mean",
     background: tuple[float | dict, float | dict] | None = None,
+    poltype: str = "",
 ) -> dict[str, tuple[Array, float, float]]:
     """Create a dynamical spectrum for each polarization channel
 
@@ -1097,7 +947,7 @@ def _create_dynspectra(
 
     """
 
-    data, poltype = _format_data(data)
+    data, poltype = _format_data(data, poltype=poltype)
     data = np.squeeze(data)
 
     yy = None
@@ -1189,6 +1039,7 @@ def create_dynspectrum(
     bkg_method: str | None = "mean",
     background: tuple[float | dict, float | dict] | None = None,
     combine: str = "mean",
+    poltype: str = "",
 ) -> tuple[Array, tuple[float, float]]:
     """Returns a dynamical spectrum with the Stokes I / intensity
     parameter from the input data data array
@@ -1286,7 +1137,15 @@ def create_dynspectrum(
     (tsamp, freqs, reffreq, dm, _) = ensure_quantities(tsamp, freqs, reffreq, dm, None)
 
     spectra = _create_dynspectra(
-        data, freqs, tsamp, dm, reffreq, backgroundrange, bkg_method, background
+        data,
+        freqs,
+        tsamp,
+        dm,
+        reffreq,
+        backgroundrange,
+        bkg_method,
+        background,
+        poltype=poltype,
     )
     xx_bkgmean = spectra["xx"][1]
     xx_bkgstd = spectra["xx"][2]
@@ -1317,6 +1176,7 @@ def calc_lightcurve(
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "mean",
     background: tuple[float | dict, float | dict] | None = None,
+    poltype: str = "",
 ) -> tuple[Array, tuple[float, float]]:
     """Calculate the light curve by summing across channels, after
     dedispersion, flagging bad channels and background correction.
@@ -1376,6 +1236,7 @@ def calc_lightcurve(
         reffreq,
         backgroundrange,
         bkg_method=bkg_method,
+        poltype=poltype,
     )
 
     results, bkg = results
@@ -1431,6 +1292,7 @@ def dmtime(
     ndm: int = 50,
     backgroundrange: FInterval | tuple[FInterval] = DEFAULT_BACKGROUND_RANGE,
     bkg_method: str = "mean",
+    poltype: str = "",
 ) -> tuple[np.ndarray, np.ndarray]:
     """Returns the data for a DM-time plot: varying DM versus time/samples
 
@@ -1506,7 +1368,14 @@ def dmtime(
     # Dedisperse to the central frequency
     # This will also background-correct / normalize the spectrum
     spectra = _create_dynspectra(
-        data, freqs, tsamp, dmcenter, reffreq, backgroundrange, bkg_method
+        data,
+        freqs,
+        tsamp,
+        dmcenter,
+        reffreq,
+        backgroundrange,
+        bkg_method,
+        poltype=poltype,
     )
 
     data = spectra["xx"][0]  # There is only one channel
@@ -1538,6 +1407,7 @@ def signal2noise(
     bkg_method: str = "mean",
     background: tuple[float | dict, float | dict] = None,
     peak: bool = True,
+    poltype: str = "",
 ) -> tuple[Array, Array]:
     """Calculate peak signal to noise values over a range of DM
 
@@ -1642,7 +1512,14 @@ def signal2noise(
     else:
         dmcenter = dm
     spectra = _create_dynspectra(
-        data, freqs, tsamp, dmcenter, reffreq, backgroundrange, bkg_method
+        data,
+        freqs,
+        tsamp,
+        dmcenter,
+        reffreq,
+        backgroundrange,
+        bkg_method,
+        poltype=poltype,
     )
     dynspectrum = spectra["xx"][0]
     lightcurve = np.ma.filled(dynspectrum, 0).sum(axis=1)
