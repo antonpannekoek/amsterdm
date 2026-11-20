@@ -543,6 +543,9 @@ def signal2noise(
         ampl, mean, stddev = core.fit_ratios(dms, ratios)
         x = np.linspace(dms[0], dms[-1])
         y = ampl * np.exp(-0.5 * (x - mean) ** 2 / stddev**2)
+        if isinstance(x, Quantity):
+            x = x.value
+            y = y.value
         ax.plot(x, y, "-")
         ax.hlines(
             [ampl, ampl - 1],
@@ -562,6 +565,8 @@ def signal2noise(
             cuts.pop(0)
         if cuts[-1] > max(dms):
             cuts.pop()
+        if isinstance(cuts[0], Quantity):
+            cuts = [cut.value for cut in cuts]
         ax.vlines(
             cuts,
             0,

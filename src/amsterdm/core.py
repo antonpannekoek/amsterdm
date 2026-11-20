@@ -1559,7 +1559,9 @@ def signal2noise(
         return dms.value, np.asarray(ratios)
 
 
-def fit_ratios(dms, ratios) -> tuple[float, float, float]:
+def fit_ratios(
+    dms, ratios
+) -> tuple[float | Quantity, float | Quantity, float | Quantity]:
     """Perform a least-squares fit of a Gaussian curve to the
     signal-to-noise ratios
 
@@ -1588,17 +1590,23 @@ def fit_ratios(dms, ratios) -> tuple[float, float, float]:
     stddev = (max(dms) - min(dms)) / 4  # rough estimate
     model = Gaussian1D(amplitude=max(ratios), mean=np.median(dms), stddev=stddev)
     fit = fitter(model, dms, ratios)
-    ampl = fit.amplitude.value
+
     # Handle potential quantities
-    if fit.mean.unit:
-        mean, stddev = fit.mean.quantity, fit.stddev.quantity
+    if fit.amplitude.unit:
+        ampl, mean, stddev = (
+            fit.amplitude.quantity,
+            fit.mean.quantity,
+            fit.stddev.quantity,
+        )
     else:
-        mean, stddev = fit.mean.value, fit.stddev.value
+        # Get the direct floating point value of the parameter
+        ampl, mean, stddev = fit.amplitude.value, fit.mean.value, fit.stddev.value
+
     logger.info(
         "Ratio fit to Gaussian; result amplitude, mean +/- stddev = %.3f, %.3f +/- %.3f",
-        ampl,
-        mean,
-        stddev,
+        ampl.value if isinstance(ampl, Quantity) else ampl,
+        mean.value if isinstance(mean, Quantity) else mean,
+        stddev.value if isinstance(stddev, Quantity) else stddev,
     )
 
     return ampl, mean, stddev

@@ -643,13 +643,17 @@ def test_fit_ratios():
     dms = [8, 9, 10, 11, 12]
     ratios = [1, 2, 3, 2, 1]
     ampl, mean, stddev = core.fit_ratios(dms, ratios)
+
     assert ampl == pytest.approx(2.8402246050285)
     assert mean == pytest.approx(10.0)
     assert stddev == pytest.approx(1.3304348)
 
     dms *= DMUNIT
     ampl, mean, stddev = core.fit_ratios(dms, ratios)
-    assert ampl == pytest.approx(2.8402246050285)
     # Bit hacky, since pytest.approx won't work with quantities
+    assert ampl.unit == ""
+    assert ampl.value == pytest.approx(2.8402246050285)
+    assert mean.unit == "pc / cm3"
     assert abs(mean - 10.0 * DMUNIT) < 2 * np.finfo(float).eps * DMUNIT
+    assert stddev.unit == "pc / cm3"
     assert abs(stddev - 1.330434836214336 * DMUNIT) < 2 * np.finfo(float).eps * DMUNIT
