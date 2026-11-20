@@ -1377,22 +1377,23 @@ def dmtime(
         bkg_method,
         poltype=poltype,
     )
-
-    data = spectra["xx"][0]  # There is only one channel
+    # Create non-dispersed background-subtracted data
+    bkg, bkgstd = spectra["xx"][1:3]
+    subdata = (data - bkg[None, :]) / bkgstd[None, :]
 
     # Dedisperse the corrected spectrum across dmrange;
     # dmrange is relative to dmcenter
-    dms = np.linspace(dminterval[0], dminterval[1], ndm) - dmcenter
+    dms = np.linspace(dminterval[0], dminterval[1], ndm)
     tie = []
     for dm in dms:
-        datadd = dedisperse(data, freqs, tsamp, dm)
+        datadd = dedisperse(subdata, freqs, tsamp, dm)
         # Add all data into a light curve, taking care of NaNs
         datadd = np.ma.filled(datadd, np.nan)
         lc = np.nansum(datadd, axis=1)
         tie.append(lc)
     tie = np.vstack(tie)
 
-    return tie, dms + dmcenter
+    return tie, dms
 
 
 def signal2noise(
@@ -1521,7 +1522,7 @@ def signal2noise(
         bkg_method,
         poltype=poltype,
     )
-    dynspectrum = spectra["xx"][0]
+    dynspectrum, bkg, bkgstd = spectra["xx"]
     lightcurve = np.ma.filled(dynspectrum, 0).sum(axis=1)
     idx_bkg = []
     nsamp = len(lightcurve)
@@ -1536,7 +1537,7 @@ def signal2noise(
     lcstd = lightcurve[idx_bkg].std()
 
     # dms is relative to the mean DM
-    dms = np.linspace(dminterval[0], dminterval[1], ndm) - dmcenter
+    dms = np.linspace(dminterval[0], dminterval[1], ndm)
 
     logger.info(
         "Iterating over %d DMs from %.4f to %.4f", len(dms), dms[0].value, dms[-1].value
@@ -1544,14 +1545,21 @@ def signal2noise(
     ratios = []
     for i, dm in enumerate(dms):
         logger.debug("dm = %.4f", dm.value)
-        reldynspectrum = dedisperse(dynspectrum, freqs, tsamp, dm, reffreq=reffreq)
+        spectra = _create_dynspectra(
+            data,
+            freqs,
+            tsamp,
+            dm,
+            reffreq,
+            background=(bkg, bkgstd),
+            poltype=poltype,
+        )
+        reldynspectrum = spectra["xx"][0]
         # Sum across frequencies to obtain the light curve
         lightcurve = np.ma.filled(reldynspectrum, 0).sum(axis=1)
         value = lightcurve.max() if peak else lightcurve.sum()
         ratio = value / lcstd
         ratios.append(ratio)
-
-    dms += dmcenter
 
     if has_unit:
         return dms, np.asarray(ratios)

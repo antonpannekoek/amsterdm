@@ -570,11 +570,11 @@ def test_dmtime():
     result, dms = core.dmtime(data, freqs, tsamp=0.1, dminterval=dminterval, ndm=5)
     expected = np.array(
         [
-            [-1.0, -4.33333333, 0.33333333, 5.0],
+            [-7.0, -2.3333333, 2.3333333, 7.0],
             [5.0, -6.33333333, -1.66666667, 3.0],
             [1.0, 5.66666667, -5.66666667, -1.0],
-            [-3.0, 1.66666667, 6.33333333, -5.0],
-            [-5.0, -0.33333333, 4.33333333, 1.0],
+            [-3.0, 1.66666667, -1.66666667, 3.0],
+            [1.0, -2.33333333, 2.33333333, -1.0],
         ]
     )
     assert result.shape[0] == len(dms)
@@ -593,19 +593,20 @@ def test_signal2noise():
     freqs = np.array([1.0, 1.1, 1.2])
     dminterval = [9, 11]
     result = core.signal2noise(data, freqs, 1e-1, dminterval, ndm=9)
+
     # First value is a list of DMs
     assert_allclose(result[0], np.linspace(9, 11, 9))
     expected = np.array(
         [
-            2.8974359,
-            3.0,
+            3.66666667,
+            2.23076923,
             2.12820513,
-            2.8974359,
+            2.38461538,
             2.43589744,
             3.0,
-            2.33333333,
+            3.05128205,
             2.8974359,
-            3.0,
+            2.23076923,
         ]
     )
     # Second value is a list of signal-to-noise ratios
@@ -614,19 +615,8 @@ def test_signal2noise():
     # Set the zerpoint dm to be at the end of the interval
     result = core.signal2noise(data, freqs, 0.1, dminterval, dm=11, ndm=9)
     assert_allclose(result[0], np.linspace(9, 11, 9))
-
     expected = np.array(
-        [
-            24.6,
-            24.73333333,
-            25.26666667,
-            25.0,
-            23.26666667,
-            23.0,
-            33.4,
-            33.0,
-            24.73333333,
-        ]
+        [35.0, 24.73333333, 26.33333333, 25.0, 27.0, 23.0, 33.4, 33.0, 24.73333333]
     )
     assert_allclose(result[1], expected)
 
