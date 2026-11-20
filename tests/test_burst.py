@@ -45,7 +45,6 @@ def test_burst():
         data, backgroundrange=[0.1, 1], extra=True
     )
     # Note: normalization by noise (factor 2) results in the signal being 5
-    print(corrdata[100, ...].mean())
     assert abs(corrdata[100, ...].mean() - 5) < 0.1
     # assert abs(corrdata[100, ...].mean() - 5) < 1e-3
     # Other values still 0

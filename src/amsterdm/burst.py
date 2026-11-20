@@ -6,6 +6,7 @@ from pathlib import Path, PurePath
 from types import EllipsisType
 import warnings
 
+import astropy.io.fits as pyfits
 from astropy import units
 from astropy.units import Quantity
 import numpy as np
@@ -14,9 +15,9 @@ from matplotlib.axes import Axes
 
 from . import core
 from . import plot
-from .constants import DEFAULT_BACKGROUND_RANGE, DMUNIT, Array, HEADER_POLKEYS
+from .constants import DEFAULT_BACKGROUND_RANGE, DMUNIT, Array
 from .io import read_fileformat, read_filterbank, read_fits, read_psrfits, read_hdf5
-from .utils import FInterval
+from .utils import FInterval, _format_data, _get_poltype
 
 
 logger = logging.getLogger(__package__)
@@ -26,7 +27,7 @@ class Burst:
     """An FRB object"""
 
     @classmethod
-    def fromfile(cls, fobj: BufferedIOBase, poltype=None, convert=True):
+    def fromfile(cls, fobj: BufferedIOBase, poltype: str = "", convert: bool = True):
         if isinstance(fobj, (str, PurePath)):
             path = Path(fobj)
             if not path.exists():
@@ -52,9 +53,20 @@ class Burst:
         return cls(header, data, file=fobj, poltype=poltype, convert=convert)
 
     def __init__(
-        self, header, data, dm=0, file=None, copy=False, poltype=None, convert=True
+        self,
+        header: dict | pyfits.Header,
+        data,
+        dm=0,
+        file=None,
+        copy: bool = False,
+        poltype: str = "",
+        convert: bool = True,
     ):
         self.header = header.copy()
+        if isinstance(
+            self.header, dict
+        ):  # Convert to pyfits.Header, which covers more use cases
+            self.header = pyfits.Header(self.header)
         self.data = data.copy() if copy else data
         self.dm = dm
         if not isinstance(self.dm, Quantity):
@@ -71,9 +83,10 @@ class Burst:
             self.path = self.filename = None
         self.badchannels = []
 
-        self._get_poltype(poltype)
-        if convert:
-            self._convert_poldata()
+        self.orig_poltype = _get_poltype(self.data, header=self.header, poltype=poltype)
+        self.data, self.poltype = _format_data(
+            self.data, header=self.header, poltype=poltype, convert=convert
+        )
 
         self._fix_missing()
         self._set_attrs()
@@ -162,110 +175,6 @@ class Burst:
             for i in range(self.data.shape[-1]):
                 if self.data[..., i].mask.all():
                     self.badchannels.append(i)
-
-    def _get_poltype(self, poltype=None):
-        """Verify or determine the polarization type from the data and header"""
-
-        _poltype = None
-        if poltype is not None:
-            # User-supplied polarization type; verify
-            _poltype = poltype.lower()
-            if _poltype == "i" and self.data.ndim == 3:
-                if self.data.shape[1] != 1:
-                    raise ValueError(
-                        "second data dimension does not match the polarization type"
-                    )
-            if _poltype != "i" and self.data.ndim == 2:
-                raise ValueError(
-                    "second data dimension does not match the polarization type"
-                )
-        else:
-            # Determine the polarization from the header and data
-            if self.data.ndim == 2:
-                _poltype = "i"
-            elif self.data.ndim == 3:
-                if self.data.shape[1] == 1:
-                    _poltype = "i"
-                elif self.data.shape[1] == 4:
-                    # Use header to determine the polarization
-                    _poltype = None
-                    for key in HEADER_POLKEYS:
-                        _poltype = self.header.get(key)
-                        if _poltype:
-                            break
-                    else:
-                        raise ValueError(
-                            "polarization type can't be determined; please specify using the 'poltype' keyword"
-                        )
-            else:
-                raise ValueError(f"invalid data dimensions: {self.data.shape}")
-
-        # Transform to AmsterDM usage
-        if _poltype:
-            _poltype = _poltype.lower()
-        if _poltype == "xx-yy":
-            _poltype = "xy"
-        if _poltype == "aa-bb":
-            _poltype = "ab"
-        if _poltype == "rr-ll":
-            _poltype = "rl"
-
-        if _poltype not in ["xy", "ab", "rl", "i", "iquv"]:
-            raise ValueError(f"unknown polarization type {poltype}")
-
-        self.poltype = _poltype
-
-    def _convert_poldata(self):
-        """Convert data to Stokes I(QUV), given the polarisation type
-
-        This conversion happens in-place; the old data is destroyed
-        and replaced by the IQUV data.
-
-        """
-
-        self.orig_poltype = self.poltype
-        if self.data.ndim == 2:
-            return
-        if self.data.ndim == 3 and self.data.shape[1] == 1:
-            self.data = np.squeeze(self.data)
-            return
-        if self.poltype == "iquv":
-            return
-        # Convert to Stokes IQUV
-        if self.poltype == "xy":
-            logger.info("Converting XX-YY data to IQUV")
-            data = np.ma.array(
-                [
-                    self.data[:, 0, :] + self.data[:, 1, :],
-                    self.data[:, 0, :] - self.data[:, 1, :],
-                    self.data[:, 2, :] + self.data[:, 3, :],
-                    self.data[:, 2, :] - self.data[:, 3, :],
-                ]
-            )
-            self.data = np.moveaxis(data, 0, 1)
-        if self.poltype == "rl":
-            logger.info("Converting RR-LL data to IQUV")
-            data = np.ma.array(
-                [
-                    self.data[:, 0, :] + self.data[:, 1, :],
-                    self.data[:, 2, :] + self.data[:, 3, :],
-                    self.data[:, 2, :] - self.data[:, 3, :],
-                    self.data[:, 0, :] - self.data[:, 1, :],
-                ]
-            )
-            self.data = np.moveaxis(data, 0, 1)
-            logger.info("Converting AA-BB data to IQUV")
-        if self.poltype == "ab":
-            data = np.ma.array(
-                [
-                    self.data[:, 0, :] + self.data[:, 1, :],
-                    self.data[:, 0, :] + self.data[:, 1, :],
-                    2 * self.data[:, 2, :],
-                    2 * self.data[:, 3, :],
-                ]
-            )
-            self.data = np.moveaxis(data, 0, 1)
-        self.poltype = "iquv"
 
     # The following are properties, so that changing them will also change the
     # `times`, `reltimes`, `freqs`, `freq_offset` and `cfreq` (cached) properties
@@ -609,7 +518,10 @@ class Burst:
             self.dedisperse(dm)
 
         return core.calc_background(
-            self.data, backgroundrange=backgroundrange, method=method
+            self.data,
+            backgroundrange=backgroundrange,
+            method=method,
+            poltype=self.poltype,
         )
 
     def dynspectrum(
@@ -686,8 +598,8 @@ class Burst:
         """
 
         if self.header.get("pol_type", "").lower() == "iquv":
-            # Four polarization channels; use only stokes I
-            data = self.data[:, 2, :]
+            # Four polarization channels; use only Stokes I
+            data = self.data[:, 0, :]
             logger.info("Selecting Stokes I data for dynamic spectrum")
         else:
             data = self.data
@@ -706,6 +618,7 @@ class Burst:
             dm,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
+            poltype=self.poltype,
         )
 
         return dynspec
@@ -802,6 +715,7 @@ class Burst:
             dm,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
+            poltype=self.poltype,
         )
 
         return lightcurve
@@ -880,6 +794,7 @@ class Burst:
             ndm=ndm,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
+            poltype=self.poltype,
         )
 
     def signal2noise(
@@ -908,6 +823,7 @@ class Burst:
             bkg_method=bkg_method,
             background=background,
             peak=peak,
+            poltype=self.poltype,
         )
 
         return dms, ratios
@@ -952,15 +868,15 @@ class Burst:
                 warnings.warn("No `dm` supplied and no default dm available")
                 dm = 0 * DMUNIT
 
-        if self.data.ndim == 3:
-            if self.data.shape[1] != 2:  # Assume Stokes IQUV
-                data = self.data[:, 0, :]
-            # else assume xx and yy
-        else:
-            data = self.data
+        # if self.data.ndim == 3:
+        #    if self.data.shape[1] != 2:  # Assume Stokes IQUV
+        #        data = self.data[:, 0, :]
+        #    # else assume xx and yy
+        # else:
+        #    data = self.data
 
         return plot.dynspectrum(
-            data,
+            self.data,
             self.freqs,
             self.tsamp,
             dm=dm,
@@ -968,6 +884,7 @@ class Burst:
             badchannels=badchannels,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
+            poltype=self.poltype,
             ax=ax,
             **options,
         )
@@ -1012,15 +929,15 @@ class Burst:
                 warnings.warn("No `dm` supplied and no default dm available")
                 dm = 0
 
-        if self.data.ndim == 3:
-            if self.data.shape[1] != 2:  # Assume Stokes IQUV
-                data = self.data[:, 0, :]
-            # else assume xx and yy
-        else:
-            data = self.data
+        # if self.data.ndim == 3:
+        #    if self.data.shape[1] != 2:  # Assume Stokes IQUV
+        #        data = self.data[:, 0, :]
+        #    # else assume xx and yy
+        # else:
+        #    data = self.data
 
         return plot.lightcurve(
-            data,
+            self.data,
             self.freqs,
             self.tsamp,
             dm=dm,
@@ -1028,6 +945,7 @@ class Burst:
             badchannels=badchannels,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
+            poltype=self.poltype,
             ax=ax,
             **options,
         )
@@ -1085,6 +1003,7 @@ class Burst:
             badchannels=badchannels,
             backgroundrange=backgroundrange,
             bkg_method=bkg_method,
+            poltype=self.poltype,
             ax=ax,
             **options,
         )
@@ -1111,15 +1030,15 @@ class Burst:
 
         """
 
-        if self.data.ndim == 3:
-            if self.data.shape[1] != 2:  # Assume Stokes IQUV
-                data = self.data[:, 0, :]
-            # else assume xx and yy
-        else:
-            data = self.data
+        # if self.data.ndim == 3:
+        #    if self.data.shape[1] != 2:  # Assume Stokes IQUV
+        #        data = self.data[:, 0, :]
+        #    # else assume xx and yy
+        # else:
+        #    data = self.data
 
         return plot.dmtime(
-            data,
+            self.data,
             self.freqs,
             self.tsamp,
             dminterval=dminterval,
@@ -1129,6 +1048,7 @@ class Burst:
             bkg_method=bkg_method,
             ndm=ndm,
             trange=trange,
+            poltype=self.poltype,
             ax=ax,
             **options,
         )
@@ -1156,15 +1076,15 @@ class Burst:
 
         """
 
-        if self.data.ndim == 3:
-            if self.data.shape[1] != 2:  # Assume Stokes IQUV
-                data = self.data[:, 0, :]
-            # else assume xx and yy
-        else:
-            data = self.data
+        # if self.data.ndim == 3:
+        #    if self.data.shape[1] != 2:  # Assume Stokes IQUV
+        #        data = self.data[:, 0, :]
+        #    # else assume xx and yy
+        # else:
+        #    data = self.data
 
         return plot.signal2noise(
-            data,
+            self.data,
             self.freqs,
             self.tsamp,
             dminterval=dminterval,
@@ -1175,6 +1095,7 @@ class Burst:
             bkg_method=bkg_method,
             peak=peak,
             fit=fit,
+            poltype=self.poltype,
             ax=ax,
             **options,
         )
@@ -1226,10 +1147,10 @@ class Burst:
                 warnings.warn("No `dm` supplied and no default dm available")
                 dm = 0
 
-        data = self.data[:, 0, :] if self.data.ndim == 3 else self.data
+        # data = self.data[:, 0, :] if self.data.ndim == 3 else self.data
 
         return plot.grid(
-            data,
+            self.data,
             self.freqs,
             self.tsamp,
             dm=dm,
@@ -1243,6 +1164,7 @@ class Burst:
             dm_coherent=dm_coherent,
             foff=self.foff,
             cfreq=self.cfreq,
+            poltype=self.poltype,
             ax=ax,
             **options,
         )

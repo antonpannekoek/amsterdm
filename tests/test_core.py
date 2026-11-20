@@ -426,13 +426,13 @@ def test_create_dynspectrum():
     data = {
         "xx": np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]),
         "yy": np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]) / 2,
+        "xy": np.zeros((4, 3)),
+        "yx": np.zeros((4, 3)),
     }
     freqs = np.array([1000, 1100, 1200])
     # No background correction
     idata, bkg = core.create_dynspectrum(data, freqs, tsamp=1, dm=0, bkg_method=None)
-    expected = np.array(
-        [[0.75, 0.75, 0.75], [1.5, 1.5, 1.5], [2.25, 2.25, 2.25], [3, 3, 3]]
-    )
+    expected = np.array([[1.5, 1.5, 1.5], [3, 3, 3], [4.5, 4.5, 4.5], [6, 6, 6]])
     assert_allclose(idata, expected)
     assert_allclose(bkg[0], np.zeros(3), strict=True)
     assert_allclose(bkg[1], np.zeros(3), strict=True)
@@ -441,8 +441,8 @@ def test_create_dynspectrum():
     idata, bkg = core.create_dynspectrum(
         data, freqs, tsamp=1, dm=0, backgroundrange=[0, 1]
     )
-    assert_allclose(bkg[0], 1.875 * np.ones(3))
-    assert_allclose(bkg[1], 0.883883476 * np.ones(3))
+    assert_allclose(bkg[0], 3.75 * np.ones(3))
+    assert_allclose(bkg[1], 1.677051 * np.ones(3))
     expected = np.array(
         [
             [-1.341641, -1.341641, -1.341641],
@@ -462,19 +462,26 @@ def test_create_dynspectrum():
         match="`freqs` length does not match the last axis of the data array",
     ):
         freqs = np.array([1000, 1100, 1200, 1300])
-        core.create_dynspectrum(data, freqs, tsamp=1, dm=0, backgroundrange=None)
+        core.create_dynspectrum(
+            data, freqs, tsamp=1, dm=0, backgroundrange=None, poltype="xy"
+        )
     freqs = np.array([1000, 1100, 1200])
 
     # Test 3d data
-    data = np.array([data["xx"], data["yy"]])
+    data = np.array([data["xx"], data["yy"], data["xy"], data["yx"]])
     data = np.rollaxis(data, 1, 0)  # put polarization dimension in the middle
-    assert data.shape == (4, 2, 3)
+    assert data.shape == (4, 4, 3)
 
     idata, bkg = core.create_dynspectrum(
-        data, freqs, tsamp=1, dm=0, backgroundrange=[0, 1]
+        data,
+        freqs,
+        tsamp=1,
+        dm=0,
+        backgroundrange=[0, 1],
+        poltype="xy",
     )
-    assert_allclose(bkg[0], 1.875 * np.ones(3))
-    assert_allclose(bkg[1], 0.883883476 * np.ones(3))
+    assert_allclose(bkg[0], 3.75 * np.ones(3))
+    assert_allclose(bkg[1], 1.677051 * np.ones(3))
     assert_allclose(idata, expected, rtol=1e-6)
 
     data = data[:, 0, :]
@@ -523,13 +530,19 @@ def test_calc_lightcurve():
     data = {
         "xx": np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]),
         "yy": np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]) / 2,
+        "xy": np.zeros((4, 3)),
+        "yx": np.zeros((4, 3)),
     }
     freqs = np.array([1000, 1100, 1200])
     result, bkg = core.calc_lightcurve(
-        data, freqs, tsamp=1, dm=10, backgroundrange=[0, 1]
+        data,
+        freqs,
+        tsamp=1,
+        dm=10,
+        backgroundrange=[0, 1],
     )
-    assert bkg[0] == pytest.approx(1.875)
-    assert bkg[1] == pytest.approx(0.883883476483)
+    assert bkg[0] == pytest.approx(3.75)
+    assert bkg[1] == pytest.approx(1.677051)
     expected = np.array([-2.23606798, 0.4472136, 3.13049517, -1.34164079])
     assert_allclose(result, expected)
 
@@ -630,128 +643,17 @@ def test_fit_ratios():
     dms = [8, 9, 10, 11, 12]
     ratios = [1, 2, 3, 2, 1]
     ampl, mean, stddev = core.fit_ratios(dms, ratios)
+
     assert ampl == pytest.approx(2.8402246050285)
     assert mean == pytest.approx(10.0)
     assert stddev == pytest.approx(1.3304348)
 
     dms *= DMUNIT
     ampl, mean, stddev = core.fit_ratios(dms, ratios)
-    assert ampl == pytest.approx(2.8402246050285)
     # Bit hacky, since pytest.approx won't work with quantities
+    assert ampl.unit == ""
+    assert ampl.value == pytest.approx(2.8402246050285)
+    assert mean.unit == "pc / cm3"
     assert abs(mean - 10.0 * DMUNIT) < 2 * np.finfo(float).eps * DMUNIT
+    assert stddev.unit == "pc / cm3"
     assert abs(stddev - 1.330434836214336 * DMUNIT) < 2 * np.finfo(float).eps * DMUNIT
-
-
-def test_format_data():
-    data = {"xx": np.ones((5, 3)), "yy": np.ones((5, 3))}
-    result = core._format_data(data)
-    assert result[0].shape == (5, 2, 3)
-    assert result[1] == "xy"
-
-    data = {"i": np.ones((5, 3))}
-    result = core._format_data(data)
-    assert result[0].shape == (5, 1, 3)
-    assert result[1] == "i"
-
-    data = {
-        "i": np.ones((5, 3)),
-        "q": np.ones((5, 3)),
-        "u": np.ones((5, 3)),
-        "v": np.ones((5, 3)),
-    }
-    result = core._format_data(data)
-    assert result[0].shape == (5, 4, 3)
-    assert result[1] == "iquv"
-
-    data = np.ones((5, 3))
-    # Implicit poltype
-    result = core._format_data(data)
-    assert result[0].shape == (5, 1, 3)
-    assert result[1] == "i"
-    # Explicit poltype
-    result = core._format_data(data, poltype="i")
-    assert result[0].shape == (5, 1, 3)
-    assert result[1] == "i"
-
-    data = np.ones((5, 2, 3))
-    # Implicit poltype
-    result = core._format_data(data)
-    assert result[0].shape == (5, 2, 3)
-    assert result[1] == "xy"
-    # Explicit poltype
-    result = core._format_data(data, poltype="xy")
-    assert result[0].shape == (5, 2, 3)
-    assert result[1] == "xy"
-
-    data = np.ones((5, 3, 3))
-    # Implicit poltype
-    result = core._format_data(data)
-    assert result[0].shape == (5, 3, 3)
-    assert result[1] == "iqu"
-    # Explicit poltype
-    result = core._format_data(data, poltype="iqu")
-    assert result[0].shape == (5, 3, 3)
-    assert result[1] == "iqu"
-
-    data = np.ones((5, 4, 3))
-    # Implicit poltype
-    result = core._format_data(data)
-    assert result[0].shape == (5, 4, 3)
-    assert result[1] == "iquv"
-    # Explicit poltype
-    result = core._format_data(data, poltype="iquv")
-    assert result[0].shape == (5, 4, 3)
-    assert result[1] == "iquv"
-
-    data = {"xx": np.ones((5, 3)), "bb": np.ones((5, 3))}
-    with pytest.raises(ValueError, match="missing 'yy' key to match 'xx'"):
-        core._format_data(data)
-
-    data = {"i": np.ones((5, 3)), "q": np.ones((5, 3))}
-    with pytest.raises(
-        ValueError, match="`poltype` does not match the input dict keys"
-    ):
-        core._format_data(data, poltype="iqu")
-
-    data = {"i": np.ones((5, 3)), "q": np.ones((6, 3))}
-    with pytest.raises(ValueError, match="dict values are inconsistent in shape"):
-        core._format_data(data)
-
-    data = {"i": np.ones((5, 3)), "q": np.ones((5, 1, 3))}
-    with pytest.raises(ValueError, match="dict value is not two-dimensional"):
-        core._format_data(data)
-
-    data = np.ones((5, 4, 3))
-    with pytest.raises(
-        ValueError,
-        match="polarization type does not match the number of polarization channels",
-    ):
-        core._format_data(data, poltype="xy")
-
-    with pytest.raises(ValueError, match="invalid polarization type"):
-        core._format_data(data, poltype="xxyy")
-
-    data = {"i": 5}
-    with pytest.raises(ValueError, match="dict value is not an array"):
-        core._format_data(data)
-
-    data = 5
-    with pytest.raises(ValueError, match="data is not an array"):
-        core._format_data(5)
-
-    data = np.ones((5, 2, 1, 3))
-    with pytest.raises(ValueError, match="data is not two- or three-dimensional"):
-        core._format_data(data)
-
-    data = np.ones((5, 5, 3))
-    with pytest.raises(ValueError, match="incorrect number of polarization channels"):
-        core._format_data(data)
-
-    data = np.ones((5, 3))
-    result = core._format_data(data, poltype="i")
-    assert result[0].shape == (5, 1, 3)
-    assert result[1] == "i"
-    with pytest.raises(
-        ValueError, match="incorrect polarization type for two-dimensional data"
-    ):
-        result = core._format_data(data, poltype="iq")
