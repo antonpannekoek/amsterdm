@@ -20,4 +20,4 @@ SOD = 60 * 60 * 24 * units.second
 type Array = np.ndarray | np.ma.MaskedArray
 
 
-HEADER_POLKEYS = ["polchan"]
+HEADER_POLKEYS = ["polchan", "poltype", "pol_type"]
