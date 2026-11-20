@@ -1386,7 +1386,7 @@ def dmtime(
     dms = np.linspace(dminterval[0], dminterval[1], ndm)
     tie = []
     for dm in dms:
-        datadd = dedisperse(subdata, freqs, tsamp, dm)
+        datadd = dedisperse(subdata, freqs, tsamp, dm, reffreq)
         # Add all data into a light curve, taking care of NaNs
         datadd = np.ma.filled(datadd, np.nan)
         lc = np.nansum(datadd, axis=1)
